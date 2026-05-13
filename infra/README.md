@@ -19,7 +19,14 @@ All AWS infrastructure is defined as code using [Terraform](https://www.terrafor
 Make sure you've exported your AWS profile:
 
 ```bash
+# macOS / Linux
 export AWS_PROFILE=syn-hackathon-team-3
+
+# Windows (PowerShell)
+$env:AWS_PROFILE = "syn-hackathon-team-3"
+
+# Windows (cmd)
+set AWS_PROFILE=syn-hackathon-team-3
 ```
 
 Initialize Terraform (downloads providers, connects to state bucket):
@@ -32,6 +39,12 @@ Build the lambdas and deploy everything:
 
 ```bash
 pnpm run apply
+```
+
+Build and deploy the frontend:
+
+```bash
+pnpm run apply:frontend
 ```
 
 This will output your **API URL** and **Frontend URL** — save these!
