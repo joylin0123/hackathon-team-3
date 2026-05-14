@@ -1,5 +1,7 @@
 import json
+import math
 import time
+from datetime import datetime, timezone
 
 import serial
 from awscrt import mqtt
@@ -13,6 +15,40 @@ TOPIC = "tracking-box-data"
 GPS_DEVICE = "/dev/ttyACM0"
 GPS_BAUD = 9600
 PUBLISH_INTERVAL = 1.0  # seconds
+
+TEAM_ID = 3
+SESSION_ID = int(time.time())  # fixed once per process start — distinguishes runs
+
+# The flat telemetry contract: exactly these 40 keys map 1:1 to the shared Athena table.
+PAYLOAD_KEYS = frozenset({
+    "timestamp", "team_id", "session_id",
+    "latitude", "longitude", "altitude", "speed", "course", "satellites", "gps_timestamp",
+    "acc_x", "acc_y", "acc_z", "gyro_x", "gyro_y", "gyro_z", "mag_x", "mag_y", "mag_z",
+    "status_mag", "status_gyro", "status_acc", "status_sys",
+    "pitch_rate", "roll_rate", "yaw_rate", "pitch_angle", "roll_angle", "yaw_angle",
+    "temperature", "gravity_x", "gravity_y", "gravity_z",
+    "abs_orientation_x", "abs_orientation_y", "abs_orientation_z", "abs_orientation_w",
+    "linear_acc_x", "linear_acc_y", "linear_acc_z",
+})
+
+
+def _finite(v):
+    """Pass finite numbers through; map None / NaN / Inf to None (→ SQL NULL)."""
+    if isinstance(v, (int, float)) and math.isfinite(v):
+        return v
+    return None
+
+
+def _rad(deg):
+    """Degrees → radians, None-safe."""
+    return math.radians(deg) if deg is not None else None
+
+
+def _xyz(triple):
+    """Normalise a BNO055 (x, y, z) reading — handles None and (None, None, None)."""
+    if not triple:
+        return (None, None, None)
+    return (_finite(triple[0]), _finite(triple[1]), _finite(triple[2]))
 
 
 def parse_nmea_coord(value: str, direction: str) -> float | None:
@@ -29,6 +65,25 @@ def parse_nmea_coord(value: str, direction: str) -> float | None:
     if direction in ("S", "W"):
         decimal = -decimal
     return decimal
+
+
+def nmea_to_epoch_ms(date_utc, time_utc):
+    """Combine NMEA date (ddmmyy) + time (hhmmss.ss) into a UTC epoch-ms int, or None."""
+    if not date_utc or not time_utc:
+        return None
+    try:
+        day = int(date_utc[0:2])
+        month = int(date_utc[2:4])
+        year = 2000 + int(date_utc[4:6])
+        hour = int(time_utc[0:2])
+        minute = int(time_utc[2:4])
+        seconds = float(time_utc[4:])
+        whole = int(seconds)
+        micro = int(round((seconds - whole) * 1_000_000))
+        dt = datetime(year, month, day, hour, minute, whole, micro, tzinfo=timezone.utc)
+        return int(dt.timestamp() * 1000)
+    except (ValueError, TypeError):
+        return None
 
 
 def _strip_checksum(line: str) -> str:
@@ -129,19 +184,91 @@ def init_imu():
 
 
 def read_imu(sensor) -> dict:
+    """Read raw + fused BNO055 outputs. Returns an all-None template on any failure."""
+    empty = {
+        "accel": (None, None, None),
+        "gyro": (None, None, None),
+        "mag": (None, None, None),
+        "cal": (None, None, None, None),
+        "euler": (None, None, None),
+        "quaternion": (None, None, None, None),
+        "gravity": (None, None, None),
+        "linear_accel": (None, None, None),
+        "temperature": None,
+    }
+    if sensor is None:
+        return empty
     try:
-        accel = sensor.acceleration   # (x, y, z) m/s²
-        gyro = sensor.gyro            # (x, y, z) rad/s
-        mag = sensor.magnetic         # (x, y, z) µT
-        cal = sensor.calibration_status  # (sys, gyro, accel, mag) 0–3
+        cal = sensor.calibration_status or (None, None, None, None)
+        quat = sensor.quaternion or (None, None, None, None)
         return {
-            "accel": {"x": accel[0], "y": accel[1], "z": accel[2]},
-            "gyro":  {"x": gyro[0],  "y": gyro[1],  "z": gyro[2]},
-            "mag":   {"x": mag[0],   "y": mag[1],   "z": mag[2]},
-            "cal":   {"sys": cal[0], "gyro": cal[1], "accel": cal[2], "mag": cal[3]},
+            "accel": _xyz(sensor.acceleration),       # (x, y, z) m/s²
+            "gyro": _xyz(sensor.gyro),                # (x, y, z) rad/s
+            "mag": _xyz(sensor.magnetic),             # (x, y, z) µT
+            "cal": (cal[0], cal[1], cal[2], cal[3]),  # (sys, gyro, accel, mag) 0–3
+            "euler": _xyz(sensor.euler),              # (heading, roll, pitch) degrees
+            "quaternion": (_finite(quat[0]), _finite(quat[1]),
+                           _finite(quat[2]), _finite(quat[3])),  # (w, x, y, z)
+            "gravity": _xyz(sensor.gravity),                  # (x, y, z) m/s²
+            "linear_accel": _xyz(sensor.linear_acceleration),  # (x, y, z) m/s²
+            "temperature": _finite(sensor.temperature),        # °C
         }
     except Exception as e:
-        return {"error": str(e)}
+        print(f"IMU read failed: {e}")
+        return empty
+
+
+def build_payload(gps, imu, team_id, session_id):
+    """Flatten one GPS + IMU reading into the flat 40-column telemetry contract."""
+    course_deg = _finite(gps.get("course_deg"))
+    accel = imu["accel"]
+    gyro = imu["gyro"]
+    mag = imu["mag"]
+    cal = imu["cal"]
+    euler = imu["euler"]
+    quat = imu["quaternion"]
+    gravity = imu["gravity"]
+    linear = imu["linear_accel"]
+
+    out = {
+        "timestamp": int(time.time() * 1000),
+        "team_id": team_id,
+        "session_id": session_id,
+
+        "latitude": _finite(gps.get("lat")),
+        "longitude": _finite(gps.get("lon")),
+        "altitude": _finite(gps.get("altitude_m")),
+        "speed": _finite(gps.get("speed_kmh")),
+        "course": round(course_deg) if course_deg is not None else None,
+        "satellites": gps.get("satellites"),
+        "gps_timestamp": nmea_to_epoch_ms(gps.get("date_utc"), gps.get("time_utc")),
+
+        "acc_x": accel[0], "acc_y": accel[1], "acc_z": accel[2],
+        "gyro_x": gyro[0], "gyro_y": gyro[1], "gyro_z": gyro[2],
+        "mag_x": mag[0], "mag_y": mag[1], "mag_z": mag[2],
+
+        # calibration_status order is (sys, gyro, accel, mag)
+        "status_sys": cal[0], "status_gyro": cal[1],
+        "status_acc": cal[2], "status_mag": cal[3],
+
+        # angular velocity is the gyro reading; *_rate columns mirror gyro_x/y/z
+        "roll_rate": gyro[0], "pitch_rate": gyro[1], "yaw_rate": gyro[2],
+
+        # euler is (heading=yaw, roll, pitch) in degrees — columns want radians
+        "roll_angle": _rad(euler[1]), "pitch_angle": _rad(euler[2]), "yaw_angle": _rad(euler[0]),
+
+        "temperature": _finite(imu["temperature"]),
+
+        "gravity_x": gravity[0], "gravity_y": gravity[1], "gravity_z": gravity[2],
+
+        # quaternion is (w, x, y, z) — w is first
+        "abs_orientation_w": quat[0], "abs_orientation_x": quat[1],
+        "abs_orientation_y": quat[2], "abs_orientation_z": quat[3],
+
+        "linear_acc_x": linear[0], "linear_acc_y": linear[1], "linear_acc_z": linear[2],
+    }
+    assert set(out) == PAYLOAD_KEYS, "build_payload drifted from the 40-column contract"
+    return out
 
 
 def main():
@@ -161,26 +288,21 @@ def main():
 
     gps_port = serial.Serial(GPS_DEVICE, GPS_BAUD, timeout=1)
     imu = init_imu()
+    print(f"Session {SESSION_ID} — publishing to {TOPIC}")
 
     try:
         while True:
             loop_start = time.time()
 
             gps = read_gps(gps_port)
-            payload = {
-                "device_id": DEVICE_ID,
-                "timestamp": int(time.time() * 1000),
-                "gps": gps,
-            }
-            if imu:
-                payload["imu"] = read_imu(imu)
+            payload = build_payload(gps, read_imu(imu), TEAM_ID, SESSION_ID)
 
             mqtt_connection.publish(
                 topic=TOPIC,
                 payload=json.dumps(payload),
                 qos=mqtt.QoS.AT_LEAST_ONCE,
             )
-            print(f"Published: fix={gps['fix']} lat={gps.get('lat')} lon={gps.get('lon')}")
+            print(f"Published: fix={gps.get('fix')} lat={gps.get('lat')} lon={gps.get('lon')}")
 
             time.sleep(max(0.0, PUBLISH_INTERVAL - (time.time() - loop_start)))
 
