@@ -1,4 +1,4 @@
-# 🏎️ Synadia Hackathon — Team 1
+# 🏎️ Synadia Hackathon — Team 3
 
 **AWS Account ID:** `432649419233`
 
