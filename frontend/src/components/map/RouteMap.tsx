@@ -5,6 +5,8 @@ import { IdealLinePath } from './IdealLinePath';
 import { SpeedTrack } from './SpeedTrack';
 import { CarMarker } from './CarMarker';
 import { DeviationOverlay } from './DeviationOverlay';
+import { GripHeatmap } from './GripHeatmap';
+import { ZandvoortContextOverlay } from './ZandvoortContextOverlay';
 
 // Fix broken default marker icons in Vite
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -17,9 +19,10 @@ const ZANDVOORT_CENTER: [number, number] = [52.3876, 4.5397];
 
 // Speed legend entries
 const LEGEND = [
-  { label: '0 km/h', color: 'rgb(220,0,0)' },
-  { label: '100 km/h', color: 'rgb(220,200,0)' },
-  { label: '200 km/h', color: 'rgb(0,200,0)' },
+  { label: 'Fast / clean', color: '#35fdad' },
+  { label: 'Heavy braking', color: '#38bdf8' },
+  { label: 'High lateral G', color: '#a855f7' },
+  { label: 'Off-line', color: '#ef4444' },
 ];
 
 export function RouteMap() {
@@ -35,15 +38,17 @@ export function RouteMap() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
+        <GripHeatmap />
         <IdealLinePath />
         <SpeedTrack />
         <DeviationOverlay />
+        <ZandvoortContextOverlay />
         <CarMarker />
       </MapContainer>
 
       {/* Legend */}
       <div className="absolute bottom-4 left-4 z-[1000] bg-black/70 rounded p-2 text-xs text-white space-y-1">
-        <div className="font-semibold mb-1">Speed</div>
+        <div className="font-semibold mb-1">Zandvoort · 4.259 km</div>
         {LEGEND.map((l) => (
           <div key={l.label} className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ background: l.color }} />

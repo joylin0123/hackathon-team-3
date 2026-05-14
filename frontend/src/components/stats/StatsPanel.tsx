@@ -2,6 +2,7 @@ import { SpeedGauge } from './SpeedGauge';
 import { LapTimerCard } from './LapTimerCard';
 import { SectorTimesCard } from './SectorTimesCard';
 import { useTelemetryStore } from '../../store/telemetryStore';
+import { DataConfidenceCard } from './DataConfidenceCard';
 
 export function StatsPanel() {
   const records = useTelemetryStore((s) => s.records);
@@ -12,6 +13,7 @@ export function StatsPanel() {
       <SpeedGauge />
       <LapTimerCard />
       <SectorTimesCard />
+      <DataConfidenceCard />
 
       {latest && (
         <div className="bg-white/5 rounded-lg p-3 grid grid-cols-3 gap-2 text-xs">

@@ -141,6 +141,34 @@ function parseRow(row: Record<string, string>): Record<string, unknown> {
   };
 }
 
+function parseOptionalInt(value: string | undefined, name: string): number | null {
+  if (!value) return null;
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid ${name}`);
+  }
+  return parsed;
+}
+
+function analyticsWhere(teamId: number | null, sessionId: number | null, sinceMs?: number | null) {
+  const conditions: string[] = [];
+  if (teamId !== null) conditions.push(`team_id = ${teamId}`);
+  if (sessionId !== null) conditions.push(`session_id = ${sessionId}`);
+  if (sinceMs !== null && sinceMs !== undefined) conditions.push(`timestamp >= ${sinceMs}`);
+  return conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+}
+
+function parseAnalyticsParams(c: any) {
+  const teamId = parseOptionalInt(c.req.query("team_id"), "team_id");
+  const sessionId = parseOptionalInt(c.req.query("session_id"), "session_id");
+  const sinceRaw = c.req.query("since");
+  const sinceMs: number | null = sinceRaw ? Number(sinceRaw) : null;
+  if (sinceMs !== null && (!Number.isFinite(sinceMs) || sinceMs < 0)) {
+    throw new Error("Invalid since");
+  }
+  return { teamId, sessionId, sinceMs };
+}
+
 export const app = new Hono();
 
 app.get("/api/hello", (c) => {
@@ -175,6 +203,205 @@ app.get("/api/telemetry/latest", async (c) => {
   } catch (err) {
     console.error("GET /api/telemetry/latest error:", err);
     return c.json({ error: "Failed to fetch latest telemetry" }, 500);
+  }
+});
+
+app.get("/api/analytics/summary", async (c) => {
+  try {
+    const { teamId, sessionId } = parseAnalyticsParams(c);
+    const where = analyticsWhere(teamId, sessionId);
+    const rows = await runQuery(`
+      SELECT
+        COUNT(*) sample_count,
+        MAX(speed) top_speed,
+        AVG(speed) avg_speed,
+        AVG(satellites) avg_satellites,
+        AVG((status_sys + status_gyro + status_acc + status_mag) / 4.0) avg_calibration,
+        MIN(timestamp) started_at,
+        MAX(timestamp) ended_at
+      FROM ${TABLE}
+      ${where}
+    `);
+    const row = rows[0] ?? {};
+    const sampleCount = parseInt(row.sample_count ?? "0", 10) || 0;
+    const avgSatellites = parseFloat(row.avg_satellites ?? "0") || 0;
+    const avgCalibration = parseFloat(row.avg_calibration ?? "0") || 0;
+    const confidenceScore = Math.max(0, Math.min(100, (avgSatellites / 8) * 45 + (avgCalibration / 3) * 35 + Math.min(sampleCount, 200) / 10));
+    return c.json({
+      sample_count: sampleCount,
+      top_speed: parseFloat(row.top_speed ?? "0") || 0,
+      avg_speed: parseFloat(row.avg_speed ?? "0") || 0,
+      started_at: row.started_at ? parseInt(row.started_at, 10) : null,
+      ended_at: row.ended_at ? parseInt(row.ended_at, 10) : null,
+      confidence_score: confidenceScore,
+      current_lap: null,
+      best_lap: null,
+      theoretical_best: null,
+      cleanest_lap: null,
+    });
+  } catch (err) {
+    console.error("GET /api/analytics/summary error:", err);
+    return c.json({ error: "Failed to fetch analytics summary" }, 500);
+  }
+});
+
+app.get("/api/analytics/heatmap", async (c) => {
+  try {
+    const { teamId, sessionId } = parseAnalyticsParams(c);
+    const bins = Math.max(10, Math.min(parseInt(c.req.query("bins") ?? "80", 10) || 80, 120));
+    const where = analyticsWhere(teamId, sessionId);
+    const rows = await runQuery(`
+      WITH ordered AS (
+        SELECT
+          *,
+          NTILE(${bins}) OVER (ORDER BY timestamp) AS bin_index
+        FROM ${TABLE}
+        ${where}
+      )
+      SELECT
+        bin_index - 1 AS bin,
+        AVG(speed) avg_speed,
+        MAX(speed) max_speed,
+        AVG(ABS(acc_y) / 9.81) avg_lateral_g,
+        MAX(GREATEST(0, -linear_acc_x / 9.81)) max_braking_g,
+        COUNT(*) sample_count,
+        AVG(latitude) latitude,
+        AVG(longitude) longitude
+      FROM ordered
+      GROUP BY bin_index
+      ORDER BY bin_index
+    `);
+    return c.json({
+      bins: rows.map((r) => ({
+        index: parseInt(r.bin, 10),
+        track_position: ((parseInt(r.bin, 10) || 0) + 0.5) / bins,
+        avg_speed: parseFloat(r.avg_speed ?? "0") || 0,
+        max_speed: parseFloat(r.max_speed ?? "0") || 0,
+        avg_lateral_g: parseFloat(r.avg_lateral_g ?? "0") || 0,
+        max_braking_g: parseFloat(r.max_braking_g ?? "0") || 0,
+        sample_count: parseInt(r.sample_count ?? "0", 10) || 0,
+        latitude: parseFloat(r.latitude ?? "0") || null,
+        longitude: parseFloat(r.longitude ?? "0") || null,
+      })),
+    });
+  } catch (err) {
+    console.error("GET /api/analytics/heatmap error:", err);
+    return c.json({ error: "Failed to fetch heatmap analytics" }, 500);
+  }
+});
+
+app.get("/api/analytics/events", async (c) => {
+  try {
+    const { teamId, sessionId, sinceMs } = parseAnalyticsParams(c);
+    const where = analyticsWhere(teamId, sessionId, sinceMs);
+    const rows = await runQuery(`
+      SELECT *
+      FROM ${TABLE}
+      ${where}
+      ORDER BY timestamp DESC
+      LIMIT 500
+    `);
+    const data = rows.map(parseRow) as any[];
+    const events = data.flatMap((r, i) => {
+      const lateralG = Math.abs((r.acc_y ?? 0) / 9.81);
+      const brakingG = Math.max(0, -((r.linear_acc_x ?? r.acc_x ?? 0) / 9.81));
+      const yawRate = Math.abs(r.yaw_rate ?? 0);
+      const weakGps = (r.satellites ?? 0) > 0 && (r.satellites ?? 0) < 5;
+      const weakImu = [r.status_sys, r.status_gyro, r.status_acc, r.status_mag].some((v) => (v ?? 3) < 2);
+      const hits = [
+        lateralG > 0.55 ? "high lateral load" : null,
+        brakingG > 0.45 ? "harsh braking" : null,
+        yawRate > 0.75 ? "yaw spike / spin risk" : null,
+        weakGps ? "low GPS satellites" : null,
+        weakImu ? "IMU calibration degraded" : null,
+      ].filter(Boolean);
+      if (hits.length === 0) return [];
+      return [{
+        id: `${r.timestamp}-${i}`,
+        timestamp: r.timestamp,
+        severity: yawRate > 1 || weakGps || weakImu ? "warning" : "info",
+        title: hits[0],
+        corner: "Track",
+        likely_cause: hits.join(" + "),
+        evidence: hits,
+        confidence: weakGps || weakImu ? 62 : 78,
+      }];
+    }).slice(0, 50);
+    return c.json({ events });
+  } catch (err) {
+    console.error("GET /api/analytics/events error:", err);
+    return c.json({ error: "Failed to fetch analytics events" }, 500);
+  }
+});
+
+app.get("/api/analytics/runs", async (c) => {
+  try {
+    const { teamId, sessionId } = parseAnalyticsParams(c);
+    const where = analyticsWhere(teamId, sessionId);
+    const rows = await runQuery(`
+      SELECT
+        session_id,
+        COUNT(*) sample_count,
+        MAX(speed) top_speed,
+        AVG(speed) avg_speed,
+        AVG(satellites) avg_satellites,
+        MIN(timestamp) started_at,
+        MAX(timestamp) ended_at
+      FROM ${TABLE}
+      ${where}
+      GROUP BY session_id
+      ORDER BY top_speed DESC
+    `);
+    return c.json({ runs: rows.map((r) => ({
+      session_id: parseInt(r.session_id, 10),
+      sample_count: parseInt(r.sample_count, 10),
+      top_speed: parseFloat(r.top_speed ?? "0") || 0,
+      avg_speed: parseFloat(r.avg_speed ?? "0") || 0,
+      confidence_score: Math.min(100, ((parseFloat(r.avg_satellites ?? "0") || 0) / 8) * 100),
+      started_at: parseInt(r.started_at, 10),
+      ended_at: parseInt(r.ended_at, 10),
+    })) });
+  } catch (err) {
+    console.error("GET /api/analytics/runs error:", err);
+    return c.json({ error: "Failed to fetch run analytics" }, 500);
+  }
+});
+
+app.get("/api/analytics/sensor-health", async (c) => {
+  try {
+    const { sessionId } = parseAnalyticsParams(c);
+    const where = analyticsWhere(null, sessionId);
+    const rows = await runQuery(`
+      SELECT
+        team_id,
+        COUNT(*) sample_count,
+        AVG(satellites) avg_satellites,
+        AVG((status_sys + status_gyro + status_acc + status_mag) / 4.0) avg_calibration,
+        MIN(timestamp) started_at,
+        MAX(timestamp) latest_at
+      FROM ${TABLE}
+      ${where}
+      GROUP BY team_id
+      ORDER BY team_id
+    `);
+    return c.json({ sensors: rows.map((r) => {
+      const gpsScore = Math.min(100, ((parseFloat(r.avg_satellites ?? "0") || 0) / 8) * 100);
+      const imuScore = Math.min(100, ((parseFloat(r.avg_calibration ?? "0") || 0) / 3) * 100);
+      const confidenceScore = gpsScore * 0.55 + imuScore * 0.45;
+      return {
+        team_id: parseInt(r.team_id, 10),
+        sample_count: parseInt(r.sample_count, 10),
+        gps_score: gpsScore,
+        imu_score: imuScore,
+        confidence_score: confidenceScore,
+        started_at: parseInt(r.started_at, 10),
+        latest_at: parseInt(r.latest_at, 10),
+        status: confidenceScore >= 75 ? "good" : confidenceScore >= 45 ? "watch" : "poor",
+      };
+    }) });
+  } catch (err) {
+    console.error("GET /api/analytics/sensor-health error:", err);
+    return c.json({ error: "Failed to fetch sensor health" }, 500);
   }
 });
 

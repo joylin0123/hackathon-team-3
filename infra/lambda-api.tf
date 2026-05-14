@@ -110,6 +110,36 @@ resource "aws_apigatewayv2_route" "api_telemetry" {
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
+resource "aws_apigatewayv2_route" "api_analytics_summary" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/analytics/summary"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_analytics_heatmap" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/analytics/heatmap"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_analytics_events" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/analytics/events"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_analytics_runs" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/analytics/runs"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_analytics_sensor_health" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/analytics/sensor-health"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
 resource "aws_lambda_permission" "api_gw" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"

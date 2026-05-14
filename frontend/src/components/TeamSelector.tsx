@@ -19,7 +19,7 @@ export function TeamSelector() {
         )}
         {availableTeams.map((t) => (
           <option key={t} value={t}>
-            Team {t}
+            Sensor {t}
           </option>
         ))}
       </select>
