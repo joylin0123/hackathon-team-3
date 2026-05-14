@@ -16,7 +16,7 @@ resource "aws_iot_policy" "tracking_box" {
       {
         Effect   = "Allow"
         Action   = "iot:Publish"
-        Resource = "arn:aws:iot:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:topic/tracking-box/data"
+        Resource = "arn:aws:iot:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:topic/tracking-box-data"
       }
     ]
   })
@@ -39,7 +39,7 @@ resource "aws_iot_policy" "tracking_box" {
 resource "aws_iot_topic_rule" "tracking_box_to_sqs" {
   name        = "tracking_box_to_sqs"
   enabled     = true
-  sql         = "SELECT * FROM 'tracking-box/data'"
+  sql         = "SELECT * FROM 'tracking-box-data'"
   sql_version = "2016-03-23"
 
   sqs {
