@@ -9,6 +9,26 @@ ssh pi@hackathon-pi-3.local
 # Password: synadia
 ```
 
+### SSH Key Setup (optional, avoids typing the password)
+
+Generate a key if you don't have one yet (press Enter for all prompts):
+
+```bash
+ssh-keygen
+```
+
+Then copy it to the Pi:
+
+```bash
+# macOS / Linux
+ssh-copy-id pi@hackathon-pi-3.local
+
+# Windows (PowerShell)
+type $env:USERPROFILE\.ssh\id_rsa.pub | ssh pi@hackathon-pi-3.local "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+After this, SSH and the `pi:*` scripts won't ask for a password anymore.
+
 ## Setup
 
 ### 1. Create IoT Certificates
