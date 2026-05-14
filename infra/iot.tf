@@ -35,3 +35,16 @@ resource "aws_iot_policy" "tracking_box" {
 #
 # Docs: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iot_topic_rule
 # IoT SQL reference: https://docs.aws.amazon.com/iot/latest/developerguide/iot-sql-reference.html
+
+resource "aws_iot_topic_rule" "tracking_box_to_sqs" {
+  name        = "tracking_box_to_sqs"
+  enabled     = true
+  sql         = "SELECT * FROM 'tracking-box/data'"
+  sql_version = "2016-03-23"
+
+  sqs {
+    queue_url  = aws_sqs_queue.telemetry_messages.url
+    role_arn   = aws_iam_role.iot_topic_rule.arn
+    use_base64 = false
+  }
+}
