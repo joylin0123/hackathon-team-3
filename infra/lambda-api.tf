@@ -92,6 +92,24 @@ resource "aws_apigatewayv2_route" "api_hello" {
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
+resource "aws_apigatewayv2_route" "api_devices" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/devices"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_telemetry_latest" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/telemetry/latest"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_telemetry" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/telemetry"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
 resource "aws_lambda_permission" "api_gw" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"

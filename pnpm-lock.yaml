@@ -45,6 +45,12 @@ importers:
         specifier: ^4.7.0
         version: 4.12.18
     devDependencies:
+      '@aws-sdk/client-athena':
+        specifier: ^3.1046.0
+        version: 3.1046.0
+      '@aws-sdk/client-sts':
+        specifier: ^3.1046.0
+        version: 3.1046.0
       '@hono/node-server':
         specifier: ^1.13.0
         version: 1.19.14(hono@4.12.18)
