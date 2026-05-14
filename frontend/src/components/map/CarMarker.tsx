@@ -15,7 +15,7 @@ export function CarMarker() {
     >
       <Tooltip permanent direction="top" offset={[0, -10]}>
         <span className="text-xs font-mono">
-          {latest.speed.toFixed(0)} km/h
+          {(latest.speed ?? 0).toFixed(0)} km/h
         </span>
       </Tooltip>
     </CircleMarker>

@@ -25,7 +25,7 @@ export function StatsPanel() {
           </div>
           <div>
             <div className="text-white/40">Yaw rate</div>
-            <div className="font-mono text-sm">{latest.yaw_rate.toFixed(2)} r/s</div>
+            <div className="font-mono text-sm">{(latest.yaw_rate ?? 0).toFixed(2)} r/s</div>
           </div>
           <div>
             <div className="text-white/40">GPS sats</div>
@@ -33,11 +33,11 @@ export function StatsPanel() {
           </div>
           <div>
             <div className="text-white/40">Temp</div>
-            <div className="font-mono text-sm">{latest.temperature.toFixed(1)}°C</div>
+            <div className="font-mono text-sm">{(latest.temperature ?? 0).toFixed(1)}°C</div>
           </div>
           <div>
             <div className="text-white/40">Altitude</div>
-            <div className="font-mono text-sm">{latest.altitude.toFixed(1)}m</div>
+            <div className="font-mono text-sm">{(latest.altitude ?? 0).toFixed(1)}m</div>
           </div>
         </div>
       )}
