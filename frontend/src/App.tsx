@@ -35,13 +35,11 @@ export function App() {
         </div>
 
         {/* Bottom-left: Telemetry Graphs */}
-        <div className="bg-white/5 rounded-lg p-3 h-[400px]">
+        <div className="bg-white/5 rounded-lg p-3 overflow-auto">
           <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
             Telemetry Graphs
           </div>
-          <div className="h-[calc(100%-24px)]">
-            <TelemetryGraphs />
-          </div>
+          <TelemetryGraphs />
         </div>
 
         {/* Bottom-right: Analysis */}

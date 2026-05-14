@@ -5,7 +5,7 @@ export function CarMarker() {
   const records = useTelemetryStore((s) => s.records);
   const latest = records[records.length - 1];
 
-  if (!latest) return null;
+  if (!latest || latest.latitude === null || latest.longitude === null) return null;
 
   return (
     <CircleMarker

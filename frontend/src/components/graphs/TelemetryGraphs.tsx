@@ -23,10 +23,10 @@ export function TelemetryGraphs() {
     const sessionStart = records[0].timestamp;
     return records.map((r) => ({
       t: Math.round((r.timestamp - sessionStart) / 1000),
-      speed: Math.round(r.speed * 10) / 10,
-      latG: Math.round((r.acc_y / 9.81) * 100) / 100,
-      longG: Math.round((r.acc_x / 9.81) * 100) / 100,
-      yawRate: Math.round(r.yaw_rate * 1000) / 1000,
+      speed: Math.round((r.speed ?? 0) * 10) / 10,
+      latG: Math.round(((r.acc_y ?? 0) / 9.81) * 100) / 100,
+      longG: Math.round(((r.acc_x ?? 0) / 9.81) * 100) / 100,
+      yawRate: Math.round((r.yaw_rate ?? 0) * 1000) / 1000,
     }));
   }, [records]);
 
@@ -49,7 +49,7 @@ export function TelemetryGraphs() {
   };
 
   return (
-    <div className="flex flex-col gap-2 h-full">
+    <div className="flex flex-col gap-3">
       <SpeedChart {...brushProps} showBrush />
       <LateralGChart {...brushProps} />
       <LongitudinalGChart {...brushProps} />

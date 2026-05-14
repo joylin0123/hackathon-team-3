@@ -20,8 +20,9 @@ interface Props {
 
 export function SpeedChart({ data, brushStartIdx, brushEndIdx, onBrushChange, showBrush }: Props) {
   return (
-    <div className="flex-1 min-h-0">
+    <div>
       <div className="text-[#35fdad] text-xs font-mono mb-1">Speed (km/h)</div>
+      <div style={{ height: 90 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 0, right: 8, left: 0, bottom: showBrush ? 20 : 0 }}>
           <XAxis dataKey="t" tick={{ fill: '#ffffff40', fontSize: 10 }} tickFormatter={(v) => `${v}s`} />
@@ -59,6 +60,7 @@ export function SpeedChart({ data, brushStartIdx, brushEndIdx, onBrushChange, sh
           )}
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

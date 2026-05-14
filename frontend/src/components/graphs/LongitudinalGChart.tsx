@@ -15,8 +15,9 @@ export function LongitudinalGChart({ data, brushStartIdx, brushEndIdx }: Props) 
       : data;
 
   return (
-    <div className="flex-1 min-h-0">
+    <div>
       <div className="text-orange-400 text-xs font-mono mb-1">Longitudinal G (acc_x / 9.81)</div>
+      <div style={{ height: 70 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={sliced} margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
           <XAxis dataKey="t" tick={{ fill: '#ffffff40', fontSize: 10 }} tickFormatter={(v) => `${v}s`} />
@@ -37,6 +38,7 @@ export function LongitudinalGChart({ data, brushStartIdx, brushEndIdx }: Props) 
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

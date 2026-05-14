@@ -13,6 +13,7 @@ export function DeviationOverlay() {
   let current: [number, number][] = [];
 
   records.forEach((r, i) => {
+    if (r.latitude === null || r.longitude === null) return;
     const dp = deviationPoints[i];
     if (dp && dp.distanceMeters > HIGH_DEVIATION_M) {
       current.push([r.latitude, r.longitude]);
