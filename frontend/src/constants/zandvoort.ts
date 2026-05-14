@@ -1,63 +1,66 @@
-// Zandvoort ideal racing line — ~42 GPS waypoints [lat, lon], clockwise from S/F
+// Zandvoort reference line from OpenStreetMap Dutch Grand Prix circuit relation,
+// downsampled for browser rendering. Coordinates are [lat, lon], clockwise.
 export const IDEAL_LINE: [number, number][] = [
-  [52.38860, 4.54165], // Start/Finish
-  [52.38840, 4.54080],
-  [52.38810, 4.53990],
-  [52.38790, 4.53880],
-  [52.38770, 4.53760], // Turn 1 entry
-  [52.38740, 4.53650], // Turn 1 apex (Tarzanbocht)
-  [52.38720, 4.53570],
-  [52.38690, 4.53520],
-  [52.38660, 4.53480],
-  [52.38620, 4.53450],
-  [52.38580, 4.53420],
-  [52.38540, 4.53400],
-  [52.38490, 4.53380], // Turn 3 entry
-  [52.38450, 4.53370], // Turn 3 apex (Hugenholtzbocht) — SECTOR 1 END
-  [52.38410, 4.53390],
-  [52.38370, 4.53430],
-  [52.38340, 4.53480],
-  [52.38310, 4.53540],
-  [52.38290, 4.53620], // Turn 5 apex (Scheivlak)
-  [52.38280, 4.53700],
-  [52.38270, 4.53800],
-  [52.38270, 4.53900],
-  [52.38280, 4.54000],
-  [52.38300, 4.54080], // Turn 7 entry
-  [52.38330, 4.54150], // Turn 7 apex (Mastersbocht) — SECTOR 2 END
-  [52.38360, 4.54200],
-  [52.38400, 4.54230],
-  [52.38440, 4.54250],
-  [52.38480, 4.54260],
-  [52.38520, 4.54280],
-  [52.38560, 4.54310],
-  [52.38600, 4.54340], // Turn 8 apex (Arie Luyendijk)
-  [52.38640, 4.54350],
-  [52.38680, 4.54340],
-  [52.38720, 4.54310],
-  [52.38750, 4.54270],
-  [52.38780, 4.54240],
-  [52.38800, 4.54220],
-  [52.38820, 4.54200], // chicane right apex
-  [52.38840, 4.54195], // chicane left apex
-  [52.38855, 4.54185],
-  [52.38860, 4.54165], // back to S/F
+  [52.3889948, 4.5408762], // Start/Finish
+  [52.3898187, 4.5414306],
+  [52.3916242, 4.5426454],
+  [52.3917034, 4.5436346],
+  [52.3907992, 4.5434038],
+  [52.3900777, 4.5429573],
+  [52.3892853, 4.5428846],
+  [52.3887467, 4.5416496],
+  [52.3881880, 4.5414239],
+  [52.3883362, 4.5429243],
+  [52.3884832, 4.5440941],
+  [52.3884121, 4.5453586],
+  [52.3882685, 4.5466068],
+  [52.3884375, 4.5477512],
+  [52.3888259, 4.5488240],
+  [52.3889704, 4.5500026],
+  [52.3889210, 4.5514580],
+  [52.3886723, 4.5525711],
+  [52.3879992, 4.5530565],
+  [52.3868913, 4.5521150],
+  [52.3858946, 4.5512637],
+  [52.3857366, 4.5501115],
+  [52.3860056, 4.5489142],
+  [52.3865512, 4.5482184],
+  [52.3869271, 4.5492146],
+  [52.3870803, 4.5503669],
+  [52.3875555, 4.5511370],
+  [52.3880382, 4.5497835],
+  [52.3880560, 4.5485613],
+  [52.3879779, 4.5473100],
+  [52.3878083, 4.5460337],
+  [52.3875677, 4.5448791],
+  [52.3872771, 4.5437980],
+  [52.3873514, 4.5428769],
+  [52.3872150, 4.5419463],
+  [52.3852297, 4.5424746],
+  [52.3845318, 4.5423352],
+  [52.3843701, 4.5406984],
+  [52.3845821, 4.5395706],
+  [52.3851539, 4.5388448],
+  [52.3858684, 4.5387875],
+  [52.3869713, 4.5395152],
+  [52.3877616, 4.5400465],
+  [52.3889948, 4.5408762],
 ];
 
 export const SECTOR_BOUNDARIES = {
-  sector1EndIdx: 13, // Hugenholtzbocht
-  sector2EndIdx: 24, // Mastersbocht
+  sector1EndIdx: 9, // Hugenholtzbocht
+  sector2EndIdx: 23, // Mastersbocht
 };
 
-export const START_FINISH = { lat: 52.38860, lon: 4.54165 };
-export const START_FINISH_RADIUS_M = 15;
+export const START_FINISH = { lat: 52.3889948, lon: 4.5408762 };
+export const START_FINISH_RADIUS_M = 18;
 export const SECTOR_LANDMARK_RADIUS_M = 20;
 
 export const TURN_LABELS: { idx: number; name: string }[] = [
-  { idx: 5,  name: 'Turn 1 (Tarzanbocht)' },
-  { idx: 13, name: 'Turn 3 (Hugenholtzbocht)' },
-  { idx: 18, name: 'Turn 5 (Scheivlak)' },
-  { idx: 24, name: 'Turn 7 (Mastersbocht)' },
-  { idx: 31, name: 'Turn 8 (Arie Luyendijk)' },
-  { idx: 39, name: 'Final Chicane' },
+  { idx: 2, name: 'T1 (Tarzanbocht)' },
+  { idx: 9, name: 'T3 (Hugenholtzbocht)' },
+  { idx: 18, name: 'T6 (Scheivlak)' },
+  { idx: 23, name: 'T8 (Mastersbocht)' },
+  { idx: 35, name: 'Hans Ernst Chicane' },
+  { idx: 40, name: 'T14 (Arie Luyendyk)' },
 ];

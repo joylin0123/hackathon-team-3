@@ -7,6 +7,7 @@ import { CarMarker } from './CarMarker';
 import { DeviationOverlay } from './DeviationOverlay';
 import { GripHeatmap } from './GripHeatmap';
 import { ZandvoortContextOverlay } from './ZandvoortContextOverlay';
+import { GhostCarMarker } from './GhostCarMarker';
 
 // Fix broken default marker icons in Vite
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -15,7 +16,7 @@ import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl, shadowUrl });
 
-const ZANDVOORT_CENTER: [number, number] = [52.3876, 4.5397];
+const ZANDVOORT_CENTER: [number, number] = [52.3881, 4.5462];
 
 // Speed legend entries
 const LEGEND = [
@@ -43,6 +44,7 @@ export function RouteMap() {
         <SpeedTrack />
         <DeviationOverlay />
         <ZandvoortContextOverlay />
+        <GhostCarMarker />
         <CarMarker />
       </MapContainer>
 
@@ -62,6 +64,10 @@ export function RouteMap() {
         <div className="flex items-center gap-2">
           <div className="w-3 h-1 rounded bg-red-500" />
           <span>Off-line (&gt;8m)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-sky-400 border border-white border-dashed" />
+          <span>Ghost reference</span>
         </div>
       </div>
     </div>

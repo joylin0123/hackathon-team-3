@@ -1,7 +1,7 @@
 import { CircleMarker, Tooltip } from 'react-leaflet';
 import { IDEAL_LINE, TURN_LABELS } from '../../constants/zandvoort';
 
-const BANKED_TURNS = new Set(['Turn 3 (Hugenholtzbocht)', 'Turn 8 (Arie Luyendijk)']);
+const BANKED_TURNS = new Set(['T3 (Hugenholtzbocht)', 'T14 (Arie Luyendyk)']);
 
 export function ZandvoortContextOverlay() {
   return (
@@ -23,7 +23,7 @@ export function ZandvoortContextOverlay() {
           >
             <Tooltip permanent direction="top" offset={[0, -6]}>
               <span className="text-[10px] font-mono">
-                {turn.name.replace('Turn ', 'T')}
+                {turn.name}
                 {banked ? ' · banked' : ''}
               </span>
             </Tooltip>
