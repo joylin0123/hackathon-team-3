@@ -32,3 +32,6 @@ tracking-box/__pycache__/
 .env.*
 
 infra/.build/
+
+.idea/
+.claude/
