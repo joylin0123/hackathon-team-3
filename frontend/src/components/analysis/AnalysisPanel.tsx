@@ -12,7 +12,7 @@ interface AnalysisPanelProps {
 export function AnalysisPanel({ mode = 'full' }: AnalysisPanelProps) {
   if (mode === 'sensors') {
     return (
-      <div className="flex flex-col gap-3 h-full overflow-auto">
+      <div className="flex flex-col gap-3 h-full overflow-hidden">
         <div>
           <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
             Sensor Reliability
@@ -37,7 +37,7 @@ export function AnalysisPanel({ mode = 'full' }: AnalysisPanelProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 h-full overflow-auto">
+    <div className="flex flex-col gap-3 h-full overflow-hidden">
       <div>
         <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
           Corner Cause Analyzer

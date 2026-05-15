@@ -4,7 +4,6 @@ import { usePollingTelemetry } from './hooks/usePollingTelemetry';
 import { RouteMap } from './components/map/RouteMap';
 import { StatsPanel } from './components/stats/StatsPanel';
 import { TelemetryGraphs } from './components/graphs/TelemetryGraphs';
-import { AnalysisPanel } from './components/analysis/AnalysisPanel';
 import { TeamSelector } from './components/TeamSelector';
 import { DashboardTabs, type DashboardTab } from './components/DashboardTabs';
 import { SensorReliabilityPanel } from './components/analysis/SensorReliabilityPanel';
@@ -17,6 +16,9 @@ import { ReplayControls, type ReplayState } from './components/replay/ReplayCont
 import { DemoDataControls } from './components/data/DemoDataControls';
 import { SessionPicker } from './components/data/SessionPicker';
 import { SensorConsensusView } from './components/analysis/SensorConsensusView';
+import { CornerCauseCards } from './components/analysis/CornerCauseCards';
+import { DeviationChart } from './components/analysis/DeviationChart';
+import { InsightsList } from './components/analysis/InsightsList';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
@@ -69,8 +71,8 @@ export function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#003530] text-white flex flex-col">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+    <div className="h-screen overflow-hidden bg-[#003530] text-white flex flex-col">
+      <header className="flex items-center justify-between px-4 py-2 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">
           <img src="/assets/LogowhiteBig.svg" alt="Synadia" className="h-6" />
           <span className="text-white/30 text-sm">|</span>
@@ -83,24 +85,27 @@ export function App() {
 
       <DashboardTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      <main className="flex-1 p-3 min-h-0">
+      <main className="flex-1 p-3 min-h-0 overflow-hidden">
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(420px,0.9fr)_minmax(420px,1.1fr)] gap-3 h-full min-h-0">
-            <div className="h-96 xl:h-115 min-h-0">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)] gap-3 h-full min-h-0 overflow-hidden">
+            <div className="h-full min-h-0">
               <RouteMap layers={mapLayers} replayRecord={replayRecord} />
             </div>
-            <div className="overflow-auto min-h-0 space-y-3">
-              {controls}
+            <div className="min-h-0 overflow-hidden">
               <StatsPanel />
             </div>
           </div>
         )}
 
+        {activeTab === "controls" && (
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 h-full min-h-0 overflow-hidden">
+            {controls}
+          </div>
+        )}
+
         {activeTab === "telemetry" && (
-          <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-3 h-full min-h-0">
-            <div className="space-y-3">
-              <DemoDataControls />
-              <SessionPicker />
+          <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)] gap-3 h-full min-h-0 overflow-hidden">
+            <div className="space-y-3 min-h-0 overflow-hidden">
               <div className="bg-white/5 rounded-lg p-3">
                 <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
                   What to read
@@ -114,46 +119,71 @@ export function App() {
               </div>
               <DataConfidenceCard />
             </div>
-            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
+            <div className="bg-white/5 rounded-lg p-3 overflow-hidden min-h-0">
               <TelemetryGraphs />
             </div>
           </div>
         )}
 
         {activeTab === "route" && (
-          <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-3 h-full min-h-0">
-            <div className="overflow-auto min-h-0 space-y-3">
-              <div className="h-[300px] min-h-0">
+          <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-3 h-full min-h-0 overflow-hidden">
+            <div className="min-h-0 overflow-hidden">
+              <div className="h-full min-h-0">
                 <RouteMap
                   layers={mapLayers}
                   replayRecord={replayRecord}
                   compact
                 />
               </div>
-              {controls}
             </div>
-            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
-              <AnalysisPanel mode="route" />
+            <div className="grid grid-cols-2 gap-3 min-h-0 overflow-hidden">
+              <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                  Corner Cause Analyzer
+                </div>
+                <CornerCauseCards />
+              </div>
+              <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                  Deviation from Reference Line
+                </div>
+                <DeviationChart />
+                <div className="text-white/30 text-xs mt-1">
+                  X = track position (% lap) · Y = meters from reference
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === "sensors" && (
-          <div className="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-3 h-full min-h-0">
-            <div className="space-y-3">
-              <DemoDataControls />
-              <SessionPicker />
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 h-full min-h-0 overflow-hidden">
+            <div className="space-y-3 min-h-0 overflow-hidden">
               <DataConfidenceCard />
               <SensorConsensusView />
-              <div className="bg-white/5 rounded-lg p-3">
-                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
-                  Race Control
-                </div>
-                <RaceControlFeed />
-              </div>
             </div>
-            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
-              <AnalysisPanel mode="sensors" />
+            <div className="bg-white/5 rounded-lg p-3 overflow-hidden min-h-0">
+              <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                Sensor Reliability
+              </div>
+              <SensorReliabilityPanel />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "events" && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 h-full min-h-0 overflow-hidden">
+            <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+              <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                Race Control
+              </div>
+              <RaceControlFeed />
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+              <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                Driver Insights
+              </div>
+              <InsightsList />
             </div>
           </div>
         )}

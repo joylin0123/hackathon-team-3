@@ -14,6 +14,34 @@ const TABLE = `"s3tablescatalog/${process.env.ATHENA_CATALOG}".${process.env.ATH
 let cachedClient: AthenaClient | null = null;
 let clientExpiry = 0;
 
+type QueryCacheEntry = {
+  rows: Record<string, string>[];
+  expiresAt: number;
+};
+
+const DEFAULT_DEVICES = [1, 2, 3];
+const ATHENA_START_RETRY_DELAYS_MS = [250, 750, 1500, 3000, 5000, 7500];
+const queryCache = new Map<string, QueryCacheEntry>();
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAthenaConcurrencyError(err: unknown): boolean {
+  const error = err as {
+    name?: string;
+    Reason?: string;
+    __type?: string;
+    message?: string;
+  };
+  return (
+    error?.Reason === "CONCURRENT_QUERY_LIMIT_EXCEEDED" ||
+    error?.name === "TooManyRequestsException" ||
+    error?.__type === "TooManyRequestsException" ||
+    /CONCURRENT_QUERY_LIMIT_EXCEEDED|concurrent quer/i.test(error?.message ?? "")
+  );
+}
+
 async function getAthenaClient(): Promise<AthenaClient> {
   if (cachedClient && Date.now() < clientExpiry) {
     return cachedClient;
@@ -37,21 +65,48 @@ async function getAthenaClient(): Promise<AthenaClient> {
   return cachedClient;
 }
 
-async function runQuery(sql: string): Promise<Record<string, string>[]> {
+async function runQuery(
+  sql: string,
+  options: { cacheTtlMs?: number } = {}
+): Promise<Record<string, string>[]> {
+  const cached = queryCache.get(sql);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.rows;
+  }
+
   const client = await getAthenaClient();
 
-  const { QueryExecutionId } = await client.send(
-    new StartQueryExecutionCommand({
-      QueryString: sql,
-      ResultConfiguration: { OutputLocation: OUTPUT_LOCATION },
-      WorkGroup: "primary",
-    })
-  );
+  let queryExecutionId: string | undefined;
+  for (let attempt = 0; attempt <= ATHENA_START_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const { QueryExecutionId } = await client.send(
+        new StartQueryExecutionCommand({
+          QueryString: sql,
+          ResultConfiguration: { OutputLocation: OUTPUT_LOCATION },
+          WorkGroup: "primary",
+        })
+      );
+      queryExecutionId = QueryExecutionId;
+      break;
+    } catch (err) {
+      if (!isAthenaConcurrencyError(err)) throw err;
+      const delay = ATHENA_START_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) {
+        if (cached) return cached.rows;
+        throw err;
+      }
+      await sleep(delay);
+    }
+  }
+
+  if (!queryExecutionId) {
+    throw new Error("Athena query did not return a QueryExecutionId");
+  }
 
   for (;;) {
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
     const { QueryExecution } = await client.send(
-      new GetQueryExecutionCommand({ QueryExecutionId })
+      new GetQueryExecutionCommand({ QueryExecutionId: queryExecutionId })
     );
     const state = QueryExecution?.Status?.State;
     if (state === "SUCCEEDED") break;
@@ -69,7 +124,10 @@ async function runQuery(sql: string): Promise<Record<string, string>[]> {
 
   do {
     const { ResultSet, NextToken } = await client.send(
-      new GetQueryResultsCommand({ QueryExecutionId, NextToken: nextToken })
+      new GetQueryResultsCommand({
+        QueryExecutionId: queryExecutionId,
+        NextToken: nextToken,
+      })
     );
     if (firstPage) {
       columns = (ResultSet?.ResultSetMetadata?.ColumnInfo ?? []).map(
@@ -87,6 +145,13 @@ async function runQuery(sql: string): Promise<Record<string, string>[]> {
     nextToken = NextToken;
     firstPage = false;
   } while (nextToken);
+
+  if (options.cacheTtlMs && options.cacheTtlMs > 0) {
+    queryCache.set(sql, {
+      rows,
+      expiresAt: Date.now() + options.cacheTtlMs,
+    });
+  }
 
   return rows;
 }
@@ -179,11 +244,19 @@ app.get("/api/hello", (c) => {
 app.get("/api/devices", async (c) => {
   try {
     const rows = await runQuery(
-      `SELECT DISTINCT team_id FROM ${TABLE} ORDER BY team_id`
+      `SELECT DISTINCT team_id FROM ${TABLE} ORDER BY team_id`,
+      { cacheTtlMs: 60_000 }
     );
     return c.json({ devices: rows.map((r) => parseInt(r.team_id, 10)) });
   } catch (err) {
     console.error("GET /api/devices error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        devices: DEFAULT_DEVICES,
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch devices" }, 500);
   }
 });
@@ -198,10 +271,17 @@ app.get("/api/telemetry/latest", async (c) => {
         SELECT team_id, MAX(timestamp) FROM ${TABLE} GROUP BY team_id
       )
       ORDER BY timestamp DESC
-    `);
+    `, { cacheTtlMs: 10_000 });
     return c.json({ data: rows.map(parseRow) });
   } catch (err) {
     console.error("GET /api/telemetry/latest error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        data: [],
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch latest telemetry" }, 500);
   }
 });
@@ -221,7 +301,7 @@ app.get("/api/analytics/summary", async (c) => {
         MAX(timestamp) ended_at
       FROM ${TABLE}
       ${where}
-    `);
+    `, { cacheTtlMs: 15_000 });
     const row = rows[0] ?? {};
     const sampleCount = parseInt(row.sample_count ?? "0", 10) || 0;
     const avgSatellites = parseFloat(row.avg_satellites ?? "0") || 0;
@@ -241,6 +321,22 @@ app.get("/api/analytics/summary", async (c) => {
     });
   } catch (err) {
     console.error("GET /api/analytics/summary error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        sample_count: 0,
+        top_speed: 0,
+        avg_speed: 0,
+        started_at: null,
+        ended_at: null,
+        confidence_score: 0,
+        current_lap: null,
+        best_lap: null,
+        theoretical_best: null,
+        cleanest_lap: null,
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch analytics summary" }, 500);
   }
 });
@@ -270,7 +366,7 @@ app.get("/api/analytics/heatmap", async (c) => {
       FROM ordered
       GROUP BY bin_index
       ORDER BY bin_index
-    `);
+    `, { cacheTtlMs: 15_000 });
     return c.json({
       bins: rows.map((r) => ({
         index: parseInt(r.bin, 10),
@@ -286,6 +382,13 @@ app.get("/api/analytics/heatmap", async (c) => {
     });
   } catch (err) {
     console.error("GET /api/analytics/heatmap error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        bins: [],
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch heatmap analytics" }, 500);
   }
 });
@@ -300,7 +403,7 @@ app.get("/api/analytics/events", async (c) => {
       ${where}
       ORDER BY timestamp DESC
       LIMIT 500
-    `);
+    `, { cacheTtlMs: 10_000 });
     const data = rows.map(parseRow) as any[];
     const events = data.flatMap((r, i) => {
       const lateralG = Math.abs((r.acc_y ?? 0) / 9.81);
@@ -330,6 +433,13 @@ app.get("/api/analytics/events", async (c) => {
     return c.json({ events });
   } catch (err) {
     console.error("GET /api/analytics/events error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        events: [],
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch analytics events" }, 500);
   }
 });
@@ -351,7 +461,7 @@ app.get("/api/analytics/runs", async (c) => {
       ${where}
       GROUP BY session_id
       ORDER BY top_speed DESC
-    `);
+    `, { cacheTtlMs: 30_000 });
     return c.json({ runs: rows.map((r) => ({
       session_id: parseInt(r.session_id, 10),
       sample_count: parseInt(r.sample_count, 10),
@@ -363,6 +473,13 @@ app.get("/api/analytics/runs", async (c) => {
     })) });
   } catch (err) {
     console.error("GET /api/analytics/runs error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        runs: [],
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch run analytics" }, 500);
   }
 });
@@ -383,7 +500,7 @@ app.get("/api/analytics/sensor-health", async (c) => {
       ${where}
       GROUP BY team_id
       ORDER BY team_id
-    `);
+    `, { cacheTtlMs: 30_000 });
     return c.json({ sensors: rows.map((r) => {
       const gpsScore = Math.min(100, ((parseFloat(r.avg_satellites ?? "0") || 0) / 8) * 100);
       const imuScore = Math.min(100, ((parseFloat(r.avg_calibration ?? "0") || 0) / 3) * 100);
@@ -401,6 +518,13 @@ app.get("/api/analytics/sensor-health", async (c) => {
     }) });
   } catch (err) {
     console.error("GET /api/analytics/sensor-health error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        sensors: [],
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch sensor health" }, 500);
   }
 });
@@ -432,11 +556,19 @@ app.get("/api/telemetry", async (c) => {
 
   try {
     const rows = await runQuery(
-      `SELECT * FROM ${TABLE} ${where} ORDER BY timestamp DESC LIMIT ${limit}`
+      `SELECT * FROM ${TABLE} ${where} ORDER BY timestamp DESC LIMIT ${limit}`,
+      { cacheTtlMs: sinceMs === null ? 10_000 : 3_000 }
     );
     return c.json({ data: rows.map(parseRow) });
   } catch (err) {
     console.error("GET /api/telemetry error:", err);
+    if (isAthenaConcurrencyError(err)) {
+      return c.json({
+        data: [],
+        degraded: true,
+        reason: "Athena concurrent query limit exceeded",
+      });
+    }
     return c.json({ error: "Failed to fetch telemetry" }, 500);
   }
 });

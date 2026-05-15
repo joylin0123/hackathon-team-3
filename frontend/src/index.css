@@ -5,7 +5,15 @@
   --synadia-accent: #35fdad;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
+  margin: 0;
   background-color: var(--synadia-dark);
   color: #ffffff;
   font-family: "Inter", system-ui, sans-serif;

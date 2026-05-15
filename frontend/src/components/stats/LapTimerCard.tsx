@@ -21,12 +21,12 @@ export function LapTimerCard() {
     current && bestLapTimeMs ? current.elapsedMs - bestLapTimeMs : null;
 
   return (
-    <div className="bg-white/5 rounded-lg p-4 space-y-3">
+    <div className="bg-white/5 rounded-lg p-3 space-y-2 min-h-0">
       <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest">Lap Timer</div>
 
       <div>
         <div className="text-white/40 text-xs">Current lap</div>
-        <div className="text-3xl font-mono tabular-nums">
+        <div className="text-2xl font-mono tabular-nums">
           {formatMs(current?.elapsedMs ?? null)}
         </div>
         {delta !== null && (
@@ -36,7 +36,7 @@ export function LapTimerCard() {
         )}
       </div>
 
-      <div className="border-t border-white/10 pt-3 grid grid-cols-2 gap-2 text-sm">
+      <div className="border-t border-white/10 pt-2 grid grid-cols-2 gap-2 text-sm">
         <div>
           <div className="text-white/40 text-xs">Best lap</div>
           <div className="font-mono">{formatMs(bestLapTimeMs)}</div>

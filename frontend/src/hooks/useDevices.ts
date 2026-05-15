@@ -12,7 +12,7 @@ export function useDevices() {
       .then((teams) => {
         setAvailableTeams(teams);
         if (teams.length > 0 && activeTeamId === null) {
-          setActiveTeam(teams[0]);
+          setActiveTeam(teams.includes(3) ? 3 : teams[0]);
         }
       })
       .catch(console.error);
