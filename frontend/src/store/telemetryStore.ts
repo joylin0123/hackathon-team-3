@@ -74,6 +74,7 @@ function deriveComputedState(
     laps,
     bestLapTimeMs,
     deviationPoints,
+    lapCrossings: crossings,
   };
 }
 
