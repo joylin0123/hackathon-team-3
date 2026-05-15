@@ -1,6 +1,6 @@
 import type { DevicesResponse, TelemetryRecord, TelemetryResponse } from '../types/telemetry';
 
-const BASE = (import.meta.env.VITE_API_URL as string).replace(/\/$/, '');
+const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '');
 
 export async function fetchDevices(): Promise<number[]> {
   const res = await fetch(`${BASE}/api/devices`);
@@ -12,6 +12,16 @@ export async function fetchDevices(): Promise<number[]> {
 export async function fetchLatestTelemetry(): Promise<TelemetryRecord[]> {
   const res = await fetch(`${BASE}/api/telemetry/latest`);
   if (!res.ok) throw new Error(`fetchLatestTelemetry: ${res.status}`);
+  const json: TelemetryResponse = await res.json();
+  return json.data;
+}
+
+export async function fetchLiveTelemetry(team_id: number, limit = 10): Promise<TelemetryRecord[]> {
+  const url = new URL(`${BASE}/api/live`);
+  url.searchParams.set('team_id', String(team_id));
+  url.searchParams.set('limit', String(limit));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`fetchLiveTelemetry: ${res.status}`);
   const json: TelemetryResponse = await res.json();
   return json.data;
 }

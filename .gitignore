@@ -35,3 +35,4 @@ infra/.build/
 
 .idea/
 .claude/
+.context/

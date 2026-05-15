@@ -64,3 +64,39 @@ export const TURN_LABELS: { idx: number; name: string }[] = [
   { idx: 35, name: 'Hans Ernst Chicane' },
   { idx: 40, name: 'T14 (Arie Luyendyk)' },
 ];
+
+/**
+ * Circuit Zandvoort corner table — names verbatim from circuitzandvoort.nl,
+ * lat/lons anchored to IDEAL_LINE points near each apex (same accuracy class
+ * as FastF1's get_circuit_info which is "manually created, sufficient for
+ * visualization"). Used by CauseLocalizer's nearestCorner() lookup.
+ *
+ * Refine on Day 1 if needed.
+ */
+export interface Corner {
+  number: number;
+  letter?: string;
+  name: string;
+  shortName: string;
+  lat: number;
+  lon: number;
+  /** Phrasing reused in narrative cards (verbatim from circuitzandvoort.nl). */
+  note?: string;
+}
+
+export const ZANDVOORT_CORNERS: Corner[] = [
+  { number: 1, name: 'Tarzanbocht', shortName: 'Tarzan', lat: 52.3917034, lon: 4.5436346, note: 'most famous corner' },
+  { number: 2, name: 'Gerlachbocht', shortName: 'Gerlach', lat: 52.3892853, lon: 4.5428846, note: 'partly blind' },
+  { number: 3, name: 'Hugenholtzbocht', shortName: 'Hugenholtz', lat: 52.3883362, lon: 4.5429243, note: '18° banked' },
+  { number: 4, name: 'Hunserug', shortName: 'Hunserug', lat: 52.3884832, lon: 4.5440941, note: 'mild but extremely fast' },
+  { number: 5, name: 'Rob Slotemakerbocht', shortName: 'Slotemaker', lat: 52.3884121, lon: 4.5453586 },
+  { number: 6, name: 'Scheivlak', shortName: 'Scheivlak', lat: 52.3889210, lon: 4.5514580, note: 'where heroes distinguish themselves from regular drivers' },
+  { number: 7, name: 'Scheivlak (exit)', shortName: 'Scheivlak exit', lat: 52.3886723, lon: 4.5525711 },
+  { number: 8, name: 'Mastersbocht', shortName: 'Masters', lat: 52.3868913, lon: 4.5521150 },
+  { number: 9, name: 'Bocht 9', shortName: 'T9', lat: 52.3858946, lon: 4.5512637 },
+  { number: 10, name: 'Bocht Zonder Naam', shortName: 'T10', lat: 52.3860056, lon: 4.5489142 },
+  { number: 11, letter: 'A', name: 'Hans Ernst Chicane (entry)', shortName: 'Hans Ernst A', lat: 52.3870803, lon: 4.5503669, note: 'perfect location for overtaking' },
+  { number: 12, letter: 'B', name: 'Hans Ernst Chicane (exit)', shortName: 'Hans Ernst B', lat: 52.3875555, lon: 4.5511370, note: 'perfect location for overtaking' },
+  { number: 13, name: 'Kumho Kurve', shortName: 'Kumho', lat: 52.3845318, lon: 4.5423352 },
+  { number: 14, name: 'Arie Luyendykbocht', shortName: 'Arie Luyendyk', lat: 52.3858684, lon: 4.5387875, note: '18° banking, SAFER barrier' },
+];

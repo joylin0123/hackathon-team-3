@@ -1,93 +1,110 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDevices } from './hooks/useDevices';
 import { usePollingTelemetry } from './hooks/usePollingTelemetry';
+import { useLiveTelemetry } from './hooks/useLiveTelemetry';
+import { useSectorEngine } from './hooks/useSectorEngine';
+import { useTelemetryStore } from './store/telemetryStore';
 import { RouteMap } from './components/map/RouteMap';
-import { StatsPanel } from './components/stats/StatsPanel';
 import { TelemetryGraphs } from './components/graphs/TelemetryGraphs';
-import { AnalysisPanel } from './components/analysis/AnalysisPanel';
-import { TeamSelector } from './components/TeamSelector';
-import { DashboardTabs, type DashboardTab } from './components/DashboardTabs';
-import { SensorReliabilityPanel } from './components/analysis/SensorReliabilityPanel';
-import { DataConfidenceCard } from './components/stats/DataConfidenceCard';
-import { RaceControlFeed } from './components/analysis/RaceControlFeed';
+import { SpeedChart } from './components/graphs/SpeedChart';
+import type { ChartDataPoint } from './components/graphs/TelemetryGraphs';
+import { SectorInsightCard } from './components/analysis/SectorInsightCard';
+import { DriverStateTape } from './components/analysis/DriverStateTape';
+import { LapSectorHistoryStrip } from './components/analysis/LapSectorHistoryStrip';
+import { ThresholdSliders } from './components/controls/ThresholdSliders';
+import { AlertsPanel } from './components/alerts/AlertsPanel';
+import { useSectorAlerts } from './hooks/useSectorAlerts';
+import { MockDataButton } from './dev/MockDataButton';
+
+type View = 'pitwall' | 'engineer';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [view, setView] = useState<View>('pitwall');
 
   useDevices();
-  usePollingTelemetry();
+  usePollingTelemetry(); // 5 s Athena backfill — laps, history, baselines
+  useLiveTelemetry();    // 1 s DynamoDB fast path — keeps the tape's "now" cell honest
+  useSectorAlerts();
+
+  const engine = useSectorEngine();
+  const laps = engine.lapStates();
+  const currentLap = laps.length > 0 ? laps[laps.length - 1].lapNumber : 0;
+
+  const records = useTelemetryStore((s) => s.records);
+  const speedData = useMemo<ChartDataPoint[]>(() => {
+    if (records.length === 0) return [];
+    const sessionStart = records[0].timestamp;
+    return records.map((r) => ({
+      t: Math.round((r.timestamp - sessionStart) / 1000),
+      speed: Math.round((r.speed ?? 0) * 10) / 10,
+      latG: Math.round(((r.acc_y ?? 0) / 9.81) * 100) / 100,
+      longG: Math.round(((r.acc_x ?? 0) / 9.81) * 100) / 100,
+      yawRate: Math.round((r.yaw_rate ?? 0) * 1000) / 1000,
+    }));
+  }, [records]);
 
   return (
-    <div className="min-h-screen bg-[#003530] text-white flex flex-col">
+    <div className="h-screen bg-[#003530] text-white flex flex-col overflow-hidden">
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">
           <img src="/assets/LogowhiteBig.svg" alt="Synadia" className="h-6" />
           <span className="text-white/30 text-sm">|</span>
           <span className="text-[#35fdad] font-mono text-sm font-semibold tracking-wide">
-            Zandvoort Telemetry
+            Zandvoort Pit Wall {currentLap > 0 ? `· Lap ${currentLap}` : ''}
           </span>
         </div>
-        <TeamSelector />
+        <div className="flex items-center gap-3">
+          {import.meta.env.DEV && <MockDataButton />}
+          <button
+            onClick={() => setView(view === 'pitwall' ? 'engineer' : 'pitwall')}
+            className="px-3 py-1.5 text-xs font-mono rounded border border-white/20 text-white/80 hover:bg-white/10 transition"
+          >
+            {view === 'pitwall' ? 'Engineer view →' : '← Pit wall'}
+          </button>
+        </div>
       </header>
 
-      <DashboardTabs activeTab={activeTab} onChange={setActiveTab} />
-
       <main className="flex-1 p-3 min-h-0">
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_420px] gap-3 h-full min-h-0">
-            <div className="h-[520px] xl:h-auto min-h-0">
-              <RouteMap />
+        {view === 'pitwall' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 h-full min-h-0">
+            <div className="grid grid-rows-[minmax(0,1fr)_180px] gap-3 min-h-0">
+              <div className="min-h-0">
+                <RouteMap minimal />
+              </div>
+              <DriverStateTape />
             </div>
-            <div className="overflow-auto min-h-0">
-              <StatsPanel />
+            <div className="flex flex-col gap-3 min-h-0 overflow-auto">
+              <SectorInsightCard hero />
+              <div className="bg-white/5 rounded-lg px-3 py-2">
+                {speedData.length > 0 ? (
+                  <SpeedChart data={speedData} onBrushChange={() => {}} />
+                ) : (
+                  <div className="h-20 flex items-center justify-center text-white/30 text-xs">
+                    Waiting for telemetry…
+                  </div>
+                )}
+              </div>
+              <div className="bg-white/5 rounded-lg p-3">
+                <LapSectorHistoryStrip compact />
+              </div>
+              <AlertsPanel maxRows={3} />
             </div>
           </div>
         )}
 
-        {activeTab === 'telemetry' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-3 h-full min-h-0">
-            <div className="space-y-3">
-              <div className="bg-white/5 rounded-lg p-3">
-                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
-                  What to read
-                </div>
-                <p className="text-white/60 text-sm">
-                  Use these traces to connect driver inputs and car movement. Speed drops show braking zones,
-                  lateral G marks corner load, longitudinal G shows acceleration or braking, and yaw rate shows rotation.
-                </p>
-              </div>
-              <DataConfidenceCard />
-            </div>
+        {view === 'engineer' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-3 h-full min-h-0">
             <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
               <TelemetryGraphs />
             </div>
-          </div>
-        )}
-
-        {activeTab === 'route' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_520px] gap-3 h-full min-h-0">
-            <div className="h-[520px] xl:h-auto min-h-0">
-              <RouteMap />
-            </div>
-            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
-              <AnalysisPanel mode="route" />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'sensors' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-3 h-full min-h-0">
-            <div className="space-y-3">
-              <DataConfidenceCard />
+            <div className="flex flex-col gap-3 min-h-0 overflow-auto">
+              <SectorInsightCard />
               <div className="bg-white/5 rounded-lg p-3">
-                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
-                  Race Control
-                </div>
-                <RaceControlFeed />
+                <ThresholdSliders />
               </div>
-            </div>
-            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
-              <AnalysisPanel mode="sensors" />
+              <div className="bg-white/5 rounded-lg p-3">
+                <LapSectorHistoryStrip />
+              </div>
             </div>
           </div>
         )}
