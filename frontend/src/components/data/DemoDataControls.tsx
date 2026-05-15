@@ -15,7 +15,7 @@ export function DemoDataControls() {
       </p>
       <button
         type="button"
-        onClick={() => replaceRecords(buildDemoTelemetry(), { demo: true, activeTeamId: 1 })}
+        onClick={() => replaceRecords(buildDemoTelemetry(), { demo: true, activeTeamId: 3 })}
         className="w-full px-3 py-2 rounded bg-white/10 hover:bg-white/15 text-white text-xs font-mono border border-white/10"
       >
         {isDemoMode ? 'Reload Demo Run' : 'Load Demo Run'}

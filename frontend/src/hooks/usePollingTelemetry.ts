@@ -1,18 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { fetchTelemetry } from '../lib/api';
 import { useTelemetryStore } from '../store/telemetryStore';
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 15000;
 
 export function usePollingTelemetry() {
   const activeTeamId = useTelemetryStore((s) => s.activeTeamId);
   const isPolling = useTelemetryStore((s) => s.isPolling);
   const appendRecords = useTelemetryStore((s) => s.appendRecords);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     if (!isPolling || activeTeamId === null) return;
 
     async function poll() {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
       // Read latestTimestamp directly from store state to always get freshest value
       const { latestTimestamp } = useTelemetryStore.getState();
       try {
@@ -26,6 +29,8 @@ export function usePollingTelemetry() {
         }
       } catch (err) {
         console.error('Poll error:', err);
+      } finally {
+        inFlightRef.current = false;
       }
     }
 

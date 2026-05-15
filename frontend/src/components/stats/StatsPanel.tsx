@@ -9,14 +9,14 @@ export function StatsPanel() {
   const latest = records[records.length - 1];
 
   return (
-    <div className="flex flex-col gap-3 h-full">
+    <div className="grid grid-cols-2 gap-3 h-full min-h-0">
       <SpeedGauge />
       <LapTimerCard />
       <SectorTimesCard />
       <DataConfidenceCard />
 
       {latest && (
-        <div className="bg-white/5 rounded-lg p-3 grid grid-cols-3 gap-2 text-xs">
+        <div className="bg-white/5 rounded-lg p-3 grid grid-cols-3 gap-2 text-xs col-span-2">
           <div>
             <div className="text-white/40">Lat G</div>
             <div className="font-mono text-sm">{(latest.acc_y / 9.81).toFixed(2)}g</div>

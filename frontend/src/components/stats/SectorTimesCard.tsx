@@ -23,8 +23,8 @@ export function SectorTimesCard() {
   ];
 
   return (
-    <div className="bg-white/5 rounded-lg p-4">
-      <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-3">Sector Times (last lap)</div>
+    <div className="bg-white/5 rounded-lg p-3 min-h-0">
+      <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">Sector Times (last lap)</div>
       <div className="space-y-2">
         {sectors.map((s) => {
           const isBest = s.value !== null && s.best !== null && s.value <= s.best;

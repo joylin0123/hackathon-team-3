@@ -1,4 +1,4 @@
-export type DashboardTab = 'overview' | 'telemetry' | 'route' | 'sensors';
+export type DashboardTab = 'overview' | 'controls' | 'telemetry' | 'route' | 'sensors' | 'events';
 
 interface DashboardTabsProps {
   activeTab: DashboardTab;
@@ -10,6 +10,11 @@ const TABS: { id: DashboardTab; label: string; description: string }[] = [
     id: 'overview',
     label: 'Live Overview',
     description: 'Live car position, core lap stats, speed/grip map, and current data confidence.',
+  },
+  {
+    id: 'controls',
+    label: 'Control Center',
+    description: 'Demo data, session selection, replay, and map-layer controls.',
   },
   {
     id: 'telemetry',
@@ -26,19 +31,24 @@ const TABS: { id: DashboardTab; label: string; description: string }[] = [
     label: 'Sensor Health',
     description: 'GPS/IMU trust, packet freshness, dropouts, and run comparison.',
   },
+  {
+    id: 'events',
+    label: 'Events',
+    description: 'Race-control events and driver insight summaries.',
+  },
 ];
 
 export function DashboardTabs({ activeTab, onChange }: DashboardTabsProps) {
   const active = TABS.find((tab) => tab.id === activeTab) ?? TABS[0];
 
   return (
-    <div className="px-3 pt-3">
+    <div className="px-3 pt-2 shrink-0">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest">
             {active.label}
           </div>
-          <p className="text-white/55 text-sm mt-1 max-w-3xl">{active.description}</p>
+          <p className="text-white/55 text-sm mt-0.5 max-w-3xl">{active.description}</p>
         </div>
 
         <div className="flex flex-wrap gap-1 bg-black/20 border border-white/10 rounded-lg p-1">

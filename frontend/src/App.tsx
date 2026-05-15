@@ -21,6 +21,9 @@ import { ReplayControls, type ReplayState } from './components/replay/ReplayCont
 import { DemoDataControls } from './components/data/DemoDataControls';
 import { SessionPicker } from './components/data/SessionPicker';
 import { SensorConsensusView } from './components/analysis/SensorConsensusView';
+import { CornerCauseCards } from './components/analysis/CornerCauseCards';
+import { DeviationChart } from './components/analysis/DeviationChart';
+import { InsightsList } from './components/analysis/InsightsList';
 
 type View = 'pitwall' | 'engineer';
 
@@ -93,8 +96,8 @@ export function App() {
   );
 
   return (
-    <div className="h-screen bg-[#003530] text-white flex flex-col overflow-hidden">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+    <div className="h-screen overflow-hidden bg-[#003530] text-white flex flex-col">
+      <header className="flex items-center justify-between px-4 py-2 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-3">
           <img src="/assets/LogowhiteBig.svg" alt="Synadia" className="h-6" />
           <span className="text-white/30 text-sm">|</span>
@@ -113,7 +116,7 @@ export function App() {
         </div>
       </header>
 
-      <main className="flex-1 p-3 min-h-0">
+      <main className="flex-1 p-3 min-h-0 overflow-hidden">
         {view === 'pitwall' && (
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 h-full min-h-0">
             <div className="grid grid-rows-[minmax(0,1fr)_180px] gap-3 min-h-0">
@@ -143,8 +146,8 @@ export function App() {
         )}
 
         {view === 'engineer' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)_320px] gap-3 h-full min-h-0">
-            <div className="space-y-3">
+          <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-3 h-full min-h-0 overflow-hidden">
+            <div className="space-y-3 min-h-0 overflow-hidden">
               <DemoDataControls />
               <SessionPicker />
               <div className="bg-white/5 rounded-lg p-3">
@@ -158,9 +161,26 @@ export function App() {
                   shows rotation.
                 </p>
               </div>
+              <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                  Corner Cause Analyzer
+                </div>
+                <CornerCauseCards />
+              </div>
             </div>
-            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
-              <TelemetryGraphs />
+            <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
+              <div className="bg-white/5 rounded-lg p-3 flex-1 overflow-hidden min-h-0">
+                <TelemetryGraphs />
+              </div>
+              <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                  Deviation from Reference Line
+                </div>
+                <DeviationChart />
+                <div className="text-white/30 text-xs mt-1">
+                  X = track position (% lap) · Y = meters from reference
+                </div>
+              </div>
             </div>
             <div className="flex flex-col gap-3 min-h-0 overflow-auto">
               <SectorInsightCard />
@@ -168,6 +188,7 @@ export function App() {
                 <ThresholdSliders />
               </div>
               <SensorConsensusView />
+              <InsightsList />
               <div className="bg-white/5 rounded-lg p-3">
                 <LapSectorHistoryStrip />
               </div>
