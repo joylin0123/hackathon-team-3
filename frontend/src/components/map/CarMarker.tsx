@@ -1,6 +1,7 @@
 import { CircleMarker, Tooltip } from 'react-leaflet';
 import { useTelemetryStore } from '../../store/telemetryStore';
 import type { TelemetryRecord } from '../../types/telemetry';
+import { hasValidGps } from '../../lib/gps';
 
 interface CarMarkerProps {
   record?: TelemetryRecord;
@@ -11,7 +12,7 @@ export function CarMarker({ record, mode = 'live' }: CarMarkerProps) {
   const records = useTelemetryStore((s) => s.records);
   const latest = record ?? records[records.length - 1];
 
-  if (!latest || latest.latitude === null || latest.longitude === null) return null;
+  if (!latest || !hasValidGps(latest)) return null;
 
   return (
     <CircleMarker

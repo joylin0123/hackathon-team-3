@@ -4,9 +4,10 @@ import { useTelemetryStore } from '../../store/telemetryStore';
 import type { TelemetryRecord } from '../../types/telemetry';
 import { detectLapCrossings, getCurrentLapInfo } from '../../lib/lapDetection';
 import { pointAtTrackPosition, projectToTrack } from '../../lib/trackAnalytics';
+import { hasValidGps } from '../../lib/gps';
 
 function interpolateAtTimestamp(records: TelemetryRecord[], timestamp: number): [number, number] | null {
-  const usable = records.filter((r) => r.latitude !== null && r.longitude !== null);
+  const usable = records.filter(hasValidGps);
   if (usable.length === 0) return null;
   if (timestamp <= usable[0].timestamp) return [usable[0].latitude, usable[0].longitude];
 
@@ -33,7 +34,7 @@ export function GhostCarMarker() {
 
   const ghost = useMemo(() => {
     const latest = records[records.length - 1];
-    if (!latest || latest.latitude === null || latest.longitude === null) return null;
+    if (!latest || !hasValidGps(latest)) return null;
 
     const crossings = detectLapCrossings(records);
     const currentLap = getCurrentLapInfo(records, crossings);

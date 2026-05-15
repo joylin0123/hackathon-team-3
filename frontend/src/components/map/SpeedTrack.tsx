@@ -1,10 +1,7 @@
 import { Polyline } from 'react-leaflet';
 import { useTelemetryStore } from '../../store/telemetryStore';
 import { speedToColor } from '../../lib/colorScale';
-
-function hasGps(r: { latitude: number | null; longitude: number | null }) {
-  return r.latitude !== null && r.longitude !== null;
-}
+import { hasValidGps } from '../../lib/gps';
 
 export function SpeedTrack() {
   const records = useTelemetryStore((s) => s.records);
@@ -15,7 +12,7 @@ export function SpeedTrack() {
     <>
       {records.slice(0, -1).map((r, i) => {
         const next = records[i + 1];
-        if (!hasGps(r) || !hasGps(next)) return null;
+        if (!hasValidGps(r) || !hasValidGps(next)) return null;
         return (
           <Polyline
             key={r.timestamp}

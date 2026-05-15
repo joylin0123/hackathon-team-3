@@ -1,5 +1,6 @@
 import { classifyDrivingState, type DrivingState } from './CauseLocalizer';
 import type { TelemetryRecord } from '../types/telemetry';
+import { hasValidGps } from './gps';
 
 export const STATE_COLOR: Record<DrivingState, string> = {
   braking: '#ef4444',
@@ -35,7 +36,7 @@ export function sampleDriverStateMarkers(
   const out: DriverStateMarker[] = [];
   for (let i = 0; i < records.length; i += step) {
     const r = records[i];
-    if (r.latitude == null || r.longitude == null) continue;
+    if (!hasValidGps(r)) continue;
     if (r.linear_acc_x == null || r.linear_acc_y == null) continue;
     const state = classifyRecord(r);
     out.push({ lat: r.latitude, lon: r.longitude, state, color: STATE_COLOR[state] });
