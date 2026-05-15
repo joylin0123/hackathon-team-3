@@ -14,6 +14,6 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   drivenRoute: true,
   deviation: true,
   corners: true,
-  ghost: true,
+  ghost: false,
   driverState: false,
 };
