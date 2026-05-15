@@ -240,8 +240,8 @@ export function App() {
         )}
 
         {view === 'engineer' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-3 h-full min-h-0 overflow-hidden">
-            <div className="space-y-3 min-h-0 overflow-hidden">
+          <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-3 h-full min-h-0 overflow-y-auto xl:overflow-hidden pr-1 xl:pr-0">
+            <div className="space-y-3 min-h-0 xl:overflow-y-auto xl:pr-1">
               <SessionPicker />
               <div className="bg-white/5 rounded-lg p-3">
                 <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
@@ -254,7 +254,7 @@ export function App() {
                   shows rotation.
                 </p>
               </div>
-              <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+              <div className="bg-white/5 rounded-lg p-3 min-h-0">
                 <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
                   Corner Cause Analyzer
                 </div>
@@ -265,7 +265,7 @@ export function App() {
               <div className="bg-white/5 rounded-lg p-3 flex-1 overflow-hidden min-h-0">
                 <TelemetryGraphs />
               </div>
-              <div className="bg-white/5 rounded-lg p-3 min-h-0 overflow-hidden">
+              <div className="bg-white/5 rounded-lg p-3 shrink-0 overflow-hidden">
                 <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
                   Deviation from Reference Line
                 </div>
@@ -275,7 +275,7 @@ export function App() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-3 min-h-0 overflow-auto">
+            <div className="flex flex-col gap-3 min-h-0 xl:overflow-y-auto xl:pr-1">
               <SectorInsightCard />
               <div className="bg-white/5 rounded-lg p-3">
                 <ThresholdSliders />
