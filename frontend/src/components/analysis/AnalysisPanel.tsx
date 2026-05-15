@@ -3,6 +3,7 @@ import { InsightsList } from './InsightsList';
 import { CornerCauseCards } from './CornerCauseCards';
 import { RaceControlFeed } from './RaceControlFeed';
 import { SensorReliabilityPanel } from './SensorReliabilityPanel';
+import { SensorConsensusView } from './SensorConsensusView';
 
 interface AnalysisPanelProps {
   mode?: 'full' | 'route' | 'sensors';
@@ -22,6 +23,8 @@ export function AnalysisPanel({ mode = 'full' }: AnalysisPanelProps) {
           </p>
           <SensorReliabilityPanel />
         </div>
+
+        <SensorConsensusView />
 
         <div>
           <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">

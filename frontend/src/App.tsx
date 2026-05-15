@@ -14,6 +14,9 @@ import { useTelemetryStore } from './store/telemetryStore';
 import { DEFAULT_MAP_LAYERS, type MapLayers } from './components/map/mapLayers';
 import { MapLayerControls } from './components/map/MapLayerControls';
 import { ReplayControls, type ReplayState } from './components/replay/ReplayControls';
+import { DemoDataControls } from './components/data/DemoDataControls';
+import { SessionPicker } from './components/data/SessionPicker';
+import { SensorConsensusView } from './components/analysis/SensorConsensusView';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
@@ -58,6 +61,8 @@ export function App() {
 
   const controls = (
     <>
+      <DemoDataControls />
+      <SessionPicker />
       <ReplayControls records={records} replay={replay} onChange={setReplay} />
       <MapLayerControls layers={mapLayers} onChange={setMapLayers} />
     </>
@@ -94,6 +99,8 @@ export function App() {
         {activeTab === 'telemetry' && (
           <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-3 h-full min-h-0">
             <div className="space-y-3">
+              <DemoDataControls />
+              <SessionPicker />
               <div className="bg-white/5 rounded-lg p-3">
                 <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
                   What to read
@@ -128,7 +135,10 @@ export function App() {
         {activeTab === 'sensors' && (
           <div className="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-3 h-full min-h-0">
             <div className="space-y-3">
+              <DemoDataControls />
+              <SessionPicker />
               <DataConfidenceCard />
+              <SensorConsensusView />
               <div className="bg-white/5 rounded-lg p-3">
                 <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
                   Race Control
