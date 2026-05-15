@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=cjs",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=cjs --external:@aws-sdk",
     "check": "tsc --noEmit"
   },
-  "dependencies": {
-    "@aws-sdk/client-athena": "^3.1046.0",
-    "@aws-sdk/client-sts": "^3.1046.0"
-  },
   "devDependencies": {
+    "@aws-sdk/client-athena": "^3.1046.0",
+    "@aws-sdk/client-dynamodb": "^3.1046.0",
+    "@aws-sdk/client-sts": "^3.1046.0",
+    "@aws-sdk/lib-dynamodb": "^3.1046.0",
     "@types/aws-lambda": "^8.10.0",
     "@types/node": "^25.6.2",
     "esbuild": "^0.25.0",

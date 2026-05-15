@@ -16,6 +16,28 @@ variable "athena_catalog" {
   default     = "hackathon-shared-data"
 }
 
+resource "aws_dynamodb_table" "telemetry" {
+  name         = "hackathon-telemetry"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "team_id"
+  range_key    = "timestamp"
+
+  attribute {
+    name = "team_id"
+    type = "N"
+  }
+
+  attribute {
+    name = "timestamp"
+    type = "N"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+}
+
 data "archive_file" "iot_processor" {
   type        = "zip"
   source_file = "${path.module}/../lambdas/iot-processor/dist/index.js"
@@ -33,6 +55,7 @@ resource "aws_lambda_function" "iot_processor" {
 
   environment {
     variables = {
+      DYNAMO_TABLE_NAME             = aws_dynamodb_table.telemetry.name
       ATHENA_CATALOG                = var.athena_catalog
       ATHENA_DATABASE               = "telemetry"
       TABLE_NAME                    = "telemetry"
@@ -95,6 +118,22 @@ resource "aws_iam_role_policy" "iot_processor_assume_shared" {
         Action   = "sts:AssumeRole"
         Effect   = "Allow"
         Resource = var.shared_role_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "iot_processor_dynamo" {
+  name = "hackathon-iot-processor-dynamo"
+  role = aws_iam_role.iot_processor.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = ["dynamodb:PutItem", "dynamodb:BatchWriteItem"]
+        Effect   = "Allow"
+        Resource = aws_dynamodb_table.telemetry.arn
       }
     ]
   })

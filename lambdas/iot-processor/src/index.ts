@@ -5,6 +5,17 @@ import {
   StartQueryExecutionCommand,
   GetQueryExecutionCommand,
 } from "@aws-sdk/client-athena";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, BatchWriteCommand } from "@aws-sdk/lib-dynamodb";
+
+// ── DynamoDB (fast path) ──────────────────────────────────────────────────────
+
+const DYNAMO_TABLE = process.env.DYNAMO_TABLE_NAME!;
+const TTL_SECONDS = 7 * 24 * 3600;
+
+const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+// ── Athena (S3 archive) ───────────────────────────────────────────────────────
 
 const SHARED_ROLE_ARN = process.env.SHARED_ROLE_ARN!;
 const ATHENA_OUTPUT_LOCATION = process.env.SHARED_ATHENA_OUTPUT_LOCATION!;
@@ -12,34 +23,24 @@ const ATHENA_CATALOG = process.env.ATHENA_CATALOG!;
 const ATHENA_DATABASE = process.env.ATHENA_DATABASE!;
 const TABLE_NAME = process.env.TABLE_NAME!;
 
-// Quoted because the catalog path contains "/" — unquoted yields TABLE_NOT_FOUND
 const TABLE_PATH = `"s3tablescatalog/${ATHENA_CATALOG}".${ATHENA_DATABASE}.${TABLE_NAME}`;
 
-const sts = new STSClient();
-
-let cachedClient: AthenaClient | null = null;
+const sts = new STSClient({});
+let cachedAthenaClient: AthenaClient | null = null;
 let credentialsExpireAt = 0;
 
-// Reused across warm invocations; re-assumes only when the temp credentials near expiry
 async function getAthenaClient(): Promise<AthenaClient> {
   const now = Date.now();
-  if (cachedClient && now < credentialsExpireAt - 60_000) return cachedClient;
+  if (cachedAthenaClient && now < credentialsExpireAt - 60_000) return cachedAthenaClient;
 
   const { Credentials } = await sts.send(
-    new AssumeRoleCommand({
-      RoleArn: SHARED_ROLE_ARN,
-      RoleSessionName: "iot-processor",
-    }),
+    new AssumeRoleCommand({ RoleArn: SHARED_ROLE_ARN, RoleSessionName: "iot-processor" }),
   );
-  if (
-    !Credentials?.AccessKeyId ||
-    !Credentials.SecretAccessKey ||
-    !Credentials.SessionToken
-  ) {
+  if (!Credentials?.AccessKeyId || !Credentials.SecretAccessKey || !Credentials.SessionToken) {
     throw new Error("AssumeRole returned incomplete credentials");
   }
 
-  cachedClient = new AthenaClient({
+  cachedAthenaClient = new AthenaClient({
     credentials: {
       accessKeyId: Credentials.AccessKeyId,
       secretAccessKey: Credentials.SecretAccessKey,
@@ -47,10 +48,10 @@ async function getAthenaClient(): Promise<AthenaClient> {
     },
   });
   credentialsExpireAt = Credentials.Expiration?.getTime() ?? now + 3_600_000;
-  return cachedClient;
+  return cachedAthenaClient;
 }
 
-async function runQuery(client: AthenaClient, sql: string): Promise<string> {
+async function runAthenaInsert(client: AthenaClient, sql: string): Promise<void> {
   const { QueryExecutionId } = await client.send(
     new StartQueryExecutionCommand({
       QueryString: sql,
@@ -65,19 +66,18 @@ async function runQuery(client: AthenaClient, sql: string): Promise<string> {
       new GetQueryExecutionCommand({ QueryExecutionId }),
     );
     const state = QueryExecution?.Status?.State;
-    if (state === "SUCCEEDED") return QueryExecutionId;
+    if (state === "SUCCEEDED") return;
     if (state === "FAILED" || state === "CANCELLED") {
       throw new Error(
-        `Athena query ${state}: ${QueryExecution?.Status?.StateChangeReason ?? "unknown reason"}`,
+        `Athena query ${state}: ${QueryExecution?.Status?.StateChangeReason ?? "unknown"}`,
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 }
 
-// Shared cross-team telemetry schema, in the table's column order. The INSERT names
-// these explicitly, so this order only has to be internally consistent — not match
-// the table's physical column order.
+// ── shared record schema ──────────────────────────────────────────────────────
+
 const COLUMNS = [
   "timestamp", "team_id", "session_id",
   "latitude", "longitude", "altitude", "speed", "course", "satellites", "gps_timestamp",
@@ -93,50 +93,93 @@ const COLUMNS = [
   "linear_acc_x", "linear_acc_y", "linear_acc_z",
 ] as const;
 
-// Columns the shared table types as integers — sensor sources (NMEA course, fix
-// counts, BNO055 calibration levels) can arrive as floats, so these are rounded.
 const INTEGER_COLUMNS = new Set<string>([
   "timestamp", "team_id", "session_id", "course", "satellites", "gps_timestamp",
   "status_mag", "status_gyro", "status_acc", "status_sys",
 ]);
 
-// Map one telemetry message to a SQL "(v, v, ...)" tuple in COLUMNS order. Every
-// column is numeric; absent or non-finite values become the SQL literal NULL.
-function toValuesTuple(msg: any): string {
-  if (typeof msg !== "object" || msg === null) {
-    throw new Error("Telemetry message is not a JSON object");
+function parseMessage(raw: unknown): Record<string, number> | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const msg = raw as Record<string, unknown>;
+
+  const item: Record<string, number> = {};
+  for (const col of COLUMNS) {
+    const val = msg[col];
+    if (val === null || val === undefined) continue;
+    const n = typeof val === "number" ? val : Number(val);
+    if (!Number.isFinite(n)) continue;
+    item[col] = INTEGER_COLUMNS.has(col) ? Math.round(n) : n;
   }
+
+  if (!item.team_id || !item.timestamp) return null;
+  return item;
+}
+
+// Build a SQL "(v, v, ...)" tuple in COLUMNS order for Athena INSERT
+function toValuesTuple(item: Record<string, number>): string {
   const values = COLUMNS.map((col) => {
-    const raw = msg[col];
-    if (raw === null || raw === undefined) return "NULL";
-    const n = typeof raw === "number" ? raw : Number(raw);
-    if (!Number.isFinite(n)) return "NULL";
-    return String(INTEGER_COLUMNS.has(col) ? Math.round(n) : n);
+    const n = item[col];
+    return n !== undefined ? String(n) : "NULL";
   });
   return `(${values.join(", ")})`;
 }
 
-export const handler = async (event: SQSEvent) => {
-  console.log("Received SQS event with", event.Records.length, "messages");
+// ── handler ───────────────────────────────────────────────────────────────────
 
-  const tuples: string[] = [];
+export const handler = async (event: SQSEvent) => {
+  console.log("Processing", event.Records.length, "SQS messages");
+
+  const items: Record<string, number>[] = [];
   for (const record of event.Records) {
     try {
-      tuples.push(toValuesTuple(JSON.parse(record.body)));
-    } catch (error) {
-      console.error("Skipping bad SQS message:", error);
-      continue;
+      const item = parseMessage(JSON.parse(record.body));
+      if (!item) {
+        console.warn("Skipping invalid message:", record.body.slice(0, 120));
+        continue;
+      }
+      items.push(item);
+    } catch (err) {
+      console.error("Failed to parse SQS message:", err);
     }
   }
 
-  if (tuples.length === 0) {
-    return { statusCode: 200, message: "No rows to insert" };
+  if (items.length === 0) {
+    return { statusCode: 200, message: "No valid records to insert" };
   }
 
-  // One multi-row INSERT per batch — Athena writes a new S3 file per INSERT, so never insert per-message
-  const sql = `INSERT INTO ${TABLE_PATH} (${COLUMNS.join(", ")}) VALUES ${tuples.join(", ")}`;
-  await runQuery(await getAthenaClient(), sql);
+  const ttl = Math.floor(Date.now() / 1000) + TTL_SECONDS;
 
-  console.log("Inserted", tuples.length, "rows into", TABLE_NAME);
-  return { statusCode: 200, message: "Batch processed successfully" };
+  // Write to DynamoDB and Athena concurrently — a failure in either is logged
+  // but does not block the other, so both stores stay as in-sync as possible.
+  const [dynamoResult, athenaResult] = await Promise.allSettled([
+    // DynamoDB: BatchWriteItem (max 25 per call)
+    (async () => {
+      const putRequests = items.map((item) => ({
+        PutRequest: { Item: { ...item, ttl } },
+      }));
+      for (let i = 0; i < putRequests.length; i += 25) {
+        await dynamo.send(new BatchWriteCommand({
+          RequestItems: { [DYNAMO_TABLE]: putRequests.slice(i, i + 25) },
+        }));
+      }
+      console.log(`DynamoDB: inserted ${items.length} records`);
+    })(),
+
+    // Athena: one multi-row INSERT per batch
+    (async () => {
+      const tuples = items.map(toValuesTuple);
+      const sql = `INSERT INTO ${TABLE_PATH} (${COLUMNS.join(", ")}) VALUES ${tuples.join(", ")}`;
+      await runAthenaInsert(await getAthenaClient(), sql);
+      console.log(`Athena: inserted ${items.length} rows into ${TABLE_NAME}`);
+    })(),
+  ]);
+
+  if (dynamoResult.status === "rejected") {
+    console.error("DynamoDB write failed:", dynamoResult.reason);
+  }
+  if (athenaResult.status === "rejected") {
+    console.error("Athena write failed:", athenaResult.reason);
+  }
+
+  return { statusCode: 200, message: `Processed ${items.length} records` };
 };
