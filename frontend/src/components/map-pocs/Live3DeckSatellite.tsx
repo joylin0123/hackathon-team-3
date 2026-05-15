@@ -5,6 +5,7 @@ import { DeckGL } from '@deck.gl/react';
 import { PathLayer, IconLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import type { MapViewState } from '@deck.gl/core';
 import { IDEAL_LINE, TURN_LABELS } from '../../constants/zandvoort';
+import { sampleDriverStateMarkers, hexToRgba, STATE_COLOR, STATE_LABEL } from '../../lib/driverStateOverlay';
 import type { TrackVizProps } from './TrackVizProps';
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
@@ -75,6 +76,11 @@ export function Live3DeckSatellite({ records, latest, replayRecord }: TrackVizPr
 
   const car = replayRecord ?? latest;
 
+  const driverStateMarkers = useMemo(
+    () => sampleDriverStateMarkers(records, 6),
+    [records],
+  );
+
   const layers = [
     new PathLayer({
       id: 'ideal-line',
@@ -97,6 +103,18 @@ export function Live3DeckSatellite({ records, latest, replayRecord }: TrackVizPr
       widthUnits: 'meters',
       capRounded: true,
       jointRounded: true,
+    }),
+    new ScatterplotLayer({
+      id: 'driver-state',
+      data: driverStateMarkers,
+      getPosition: (m: any) => [m.lon, m.lat],
+      getRadius: 4,
+      radiusUnits: 'pixels',
+      radiusMinPixels: 3,
+      getFillColor: (m: any) => hexToRgba(m.color, 220),
+      stroked: true,
+      getLineColor: [0, 0, 0, 220],
+      lineWidthMinPixels: 1,
     }),
     // Corner dots — banked turns highlighted purple to match the Leaflet overlay.
     new ScatterplotLayer({
@@ -186,6 +204,17 @@ export function Live3DeckSatellite({ records, latest, replayRecord }: TrackVizPr
             <div className="text-white/60">Course: {Math.round(car.course ?? 0)}°</div>
           </>
         )}
+        <div className="pt-1 mt-1 border-t border-white/10">
+          <div className="text-white/55 text-[9px] uppercase tracking-widest mb-1">Driver state</div>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+            {(['full_throttle', 'braking', 'cornering', 'coasting'] as const).map((s) => (
+              <div key={s} className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full border border-black/40" style={{ background: STATE_COLOR[s] }} />
+                <span className="text-[9px] text-white/70">{STATE_LABEL[s]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm rounded px-2 py-1 text-[10px] text-white/50 font-mono pointer-events-none">

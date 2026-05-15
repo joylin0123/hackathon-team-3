@@ -5,6 +5,7 @@ export interface MapLayers {
   deviation: boolean;
   corners: boolean;
   ghost: boolean;
+  driverState: boolean;
 }
 
 export const DEFAULT_MAP_LAYERS: MapLayers = {
@@ -14,4 +15,5 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   deviation: true,
   corners: true,
   ghost: true,
+  driverState: false,
 };

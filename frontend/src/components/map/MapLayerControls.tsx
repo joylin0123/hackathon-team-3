@@ -12,6 +12,7 @@ const OPTIONS: { key: keyof MapLayers; label: string }[] = [
   { key: 'deviation', label: 'Off-line' },
   { key: 'corners', label: 'Corners' },
   { key: 'ghost', label: 'Ghost' },
+  { key: 'driverState', label: 'Driver state' },
 ];
 
 export function MapLayerControls({ layers, onChange }: MapLayerControlsProps) {
