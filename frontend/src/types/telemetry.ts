@@ -49,6 +49,18 @@ export interface TelemetryResponse {
   data: TelemetryRecord[];
 }
 
+export interface SessionSummary {
+  session_id: number;
+  team_id: number;
+  sample_count: number;
+  started_at: number;
+  ended_at: number;
+}
+
+export interface SessionsResponse {
+  sessions: SessionSummary[];
+}
+
 export interface LapInfo {
   lapNumber: number;
   startTimestamp: number;

@@ -112,6 +112,12 @@ resource "aws_apigatewayv2_route" "api_live" {
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
+resource "aws_apigatewayv2_route" "api_sessions" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/sessions"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
 resource "aws_apigatewayv2_route" "api_analytics_summary" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET /api/analytics/summary"

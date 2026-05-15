@@ -5,7 +5,7 @@ import { computeLaps, detectLapCrossings } from '../lib/lapDetection';
 import { DEFAULT_THRESHOLDS, type SectorThresholds } from '../lib/SectorEngine';
 import type { NarrativeCard } from '../lib/CauseLocalizer';
 
-const MAX_RECORDS = 3600;
+const MAX_RECORDS = 12000;
 const MAX_ALERTS = 50;
 
 interface TelemetryState {

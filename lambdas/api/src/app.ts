@@ -25,6 +25,14 @@ function toCache(key: string, value: unknown, ttlMs: number) {
 
 type Row = Record<string, unknown>;
 
+type SessionSummary = {
+  session_id: number;
+  team_id: number;
+  sample_count: number;
+  started_at: number;
+  ended_at: number;
+};
+
 // Query all records for a team, optionally filtered by since/sessionId, with optional limit.
 // Returns newest-first by default (ascending=false).
 async function queryTeam(
@@ -68,9 +76,12 @@ async function queryTeam(
     const result = await dynamo.send(new QueryCommand({ ...params, ExclusiveStartKey: lastKey }));
     items.push(...(result.Items ?? []) as Row[]);
     lastKey = result.LastEvaluatedKey as Row | undefined;
-  } while (lastKey && limit === undefined); // paginate fully only when no limit
+  } while (
+    lastKey &&
+    (limit === undefined || (sessionId !== undefined && items.length < limit))
+  );
 
-  return items;
+  return limit === undefined ? items : items.slice(0, limit);
 }
 
 // Scan the table for distinct team IDs (result cached 60 s)
@@ -98,6 +109,37 @@ async function getTeamIds(): Promise<number[]> {
     : DEFAULT_TEAM_IDS;
   toCache("team_ids", ids, 60_000);
   return ids;
+}
+
+async function getSessionSummaries(teamId: number | null): Promise<SessionSummary[]> {
+  const cacheKey = `sessions:${teamId ?? "all"}`;
+  const cached = fromCache<SessionSummary[]>(cacheKey);
+  if (cached) return cached;
+
+  const teamIds = teamId !== null ? [teamId] : await getTeamIds();
+  const rows = (await Promise.all(teamIds.map((tid) => queryTeam(tid)))).flat();
+  const grouped = new Map<string, SessionSummary>();
+
+  for (const row of rows) {
+    const sid = num(row.session_id);
+    const tid = num(row.team_id);
+    const timestamp = num(row.timestamp);
+    if (!sid || !tid || !timestamp) continue;
+
+    const key = `${tid}:${sid}`;
+    const existing = grouped.get(key);
+    grouped.set(key, {
+      session_id: sid,
+      team_id: tid,
+      sample_count: (existing?.sample_count ?? 0) + 1,
+      started_at: Math.min(existing?.started_at ?? timestamp, timestamp),
+      ended_at: Math.max(existing?.ended_at ?? timestamp, timestamp),
+    });
+  }
+
+  const sessions = Array.from(grouped.values()).sort((a, b) => b.ended_at - a.ended_at);
+  toCache(cacheKey, sessions, 60_000);
+  return sessions;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -180,10 +222,24 @@ app.get("/api/live", async (c) => {
   }
 });
 
+// List sessions/runs available for a team
+// ?team_id=3
+app.get("/api/sessions", async (c) => {
+  try {
+    const teamId = parseOptionalInt(c.req.query("team_id"), "team_id");
+    const sessions = await getSessionSummaries(teamId);
+    return c.json({ sessions });
+  } catch (err) {
+    console.error("GET /api/sessions error:", err);
+    return c.json({ sessions: [] }, 500);
+  }
+});
+
 // Historical telemetry with optional filters
-// ?team_id=3  ?since=<ms>  ?limit=N
+// ?team_id=3  ?session_id=123  ?since=<ms>  ?limit=N
 app.get("/api/telemetry", async (c) => {
   const teamIdRaw = c.req.query("team_id");
+  const sessionIdRaw = c.req.query("session_id");
   const sinceRaw = c.req.query("since");
   const limitRaw = c.req.query("limit");
 
@@ -192,7 +248,12 @@ app.get("/api/telemetry", async (c) => {
     return c.json({ error: "Invalid team_id (must be a positive integer)" }, 400);
   }
 
-  const limit = Math.min(parseInt(limitRaw ?? "100", 10) || 100, 1000);
+  const sessionId = sessionIdRaw ? parseInt(sessionIdRaw, 10) : null;
+  if (sessionIdRaw && (isNaN(sessionId!) || sessionId! < 0)) {
+    return c.json({ error: "Invalid session_id (must be a positive integer)" }, 400);
+  }
+
+  const limit = Math.min(parseInt(limitRaw ?? "100", 10) || 100, 5000);
   const sinceMs = sinceRaw ? Number(sinceRaw) : undefined;
   if (sinceRaw && (!Number.isFinite(sinceMs!) || sinceMs! < 0)) {
     return c.json({ error: "Invalid since (must be ms epoch timestamp)" }, 400);
@@ -201,12 +262,22 @@ app.get("/api/telemetry", async (c) => {
   try {
     let records: Row[];
     if (teamId !== null) {
-      records = await queryTeam(teamId, { since: sinceMs, limit, ascending: false });
+      records = await queryTeam(teamId, {
+        sessionId: sessionId ?? undefined,
+        since: sinceMs,
+        limit,
+        ascending: false,
+      });
     } else {
       // No team filter — query all known teams and merge
       const teamIds = await getTeamIds();
       const all = await Promise.all(
-        teamIds.map((tid) => queryTeam(tid, { since: sinceMs, limit, ascending: false }))
+        teamIds.map((tid) => queryTeam(tid, {
+          sessionId: sessionId ?? undefined,
+          since: sinceMs,
+          limit,
+          ascending: false,
+        }))
       );
       records = all.flat()
         .sort((a, b) => num(b.timestamp) - num(a.timestamp))
