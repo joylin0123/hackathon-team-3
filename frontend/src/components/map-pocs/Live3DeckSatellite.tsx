@@ -7,7 +7,8 @@ import type { MapViewState } from '@deck.gl/core';
 import { IDEAL_LINE, TURN_LABELS } from '../../constants/zandvoort';
 import type { TrackVizProps } from './TrackVizProps';
 
-const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY as string | undefined;
+// Demo key — domain-restricted in MapTiler dashboard. Prefer VITE_MAPTILER_KEY in .env.local for local dev.
+const MAPTILER_KEY = (import.meta.env.VITE_MAPTILER_KEY as string | undefined) || 'q5Le5vFsUiypcJkaTWMo';
 
 const MAP_STYLE = MAPTILER_KEY
   ? `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`

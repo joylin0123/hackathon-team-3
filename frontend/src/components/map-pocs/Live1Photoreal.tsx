@@ -4,7 +4,9 @@ import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { IDEAL_LINE } from '../../constants/zandvoort';
 import type { TrackVizProps } from './TrackVizProps';
 
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+// Demo key — HTTP-referrer-restricted in Google Cloud Console. Prefer VITE_GOOGLE_MAPS_API_KEY in .env.local for local dev.
+const GOOGLE_KEY =
+  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) || 'AIzaSyCCq3IjcFFqzI-ciwEfTEnZlzkXSfmEyVk';
 
 // Circuit bounding-box centre is ~52.3884N 4.5470E (lat span ~820 m, lon span ~960 m).
 // Camera sits ~400 m south of centre, looks due north, pitched 70° down at
