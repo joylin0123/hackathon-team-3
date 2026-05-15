@@ -148,4 +148,11 @@ resource "aws_lambda_event_source_mapping" "sqs_to_lambda" {
   event_source_arn = aws_sqs_queue.telemetry_messages.arn
   function_name    = aws_lambda_function.iot_processor.function_name
   batch_size       = 10
+
+  # Cap concurrent SQS-driven invocations. AWS allows values 2-1000; 2 is the
+  # minimum, which is what we want here for cost/safety.
+  # https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html
+  scaling_config {
+    maximum_concurrency = 2
+  }
 }
