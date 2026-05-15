@@ -1,12 +1,6 @@
 import { useDriverStateTape } from '../../hooks/useDriverStateTape';
 import type { DrivingState } from '../../lib/CauseLocalizer';
-
-const STATE_COLOR: Record<DrivingState, string> = {
-  braking: '#ef4444',
-  cornering: '#facc15',
-  full_throttle: '#35fdad',
-  coasting: '#94a3b8',
-};
+import { STATE_COLOR } from '../../lib/driverStateOverlay';
 
 const STATE_LETTER: Record<DrivingState, string> = {
   braking: 'B',

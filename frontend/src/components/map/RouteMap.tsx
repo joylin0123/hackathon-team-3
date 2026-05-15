@@ -10,6 +10,8 @@ import { DeviationOverlay } from './DeviationOverlay';
 import { GripHeatmap } from './GripHeatmap';
 import { ZandvoortContextOverlay } from './ZandvoortContextOverlay';
 import { GhostCarMarker } from './GhostCarMarker';
+import { DriverStateMarkers } from './DriverStateMarkers';
+import { STATE_COLOR, STATE_LABEL } from '../../lib/driverStateOverlay';
 import { SectorOverlay } from './SectorOverlay';
 import { CornerLabels } from './CornerLabels';
 import { SectorBoundaryTicks } from './SectorBoundaryTicks';
@@ -81,6 +83,7 @@ export function RouteMap({ layers = DEFAULT_MAP_LAYERS, replayRecord, compact = 
         <SectorBoundaryTicks />
         <CornerLabels />
         {layers.ghost && <GhostCarMarker />}
+        {layers.driverState && <DriverStateMarkers />}
         <CarMarker record={replayRecord} mode={replayRecord ? 'replay' : 'live'} />
       </MapContainer>
 
@@ -109,6 +112,19 @@ export function RouteMap({ layers = DEFAULT_MAP_LAYERS, replayRecord, compact = 
           <div className="w-3 h-3 rounded-full bg-yellow-300 border border-white" />
           <span>Replay car</span>
         </div>}
+        {layers.driverState && (
+          <div className="pt-1 mt-1 border-t border-white/10">
+            <div className="text-white/55 text-[10px] uppercase tracking-widest mb-1">Driver state</div>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+              {(['full_throttle', 'braking', 'cornering', 'coasting'] as const).map((s) => (
+                <div key={s} className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full border border-black/40" style={{ background: STATE_COLOR[s] }} />
+                  <span className="text-[10px]">{STATE_LABEL[s]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

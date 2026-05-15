@@ -18,7 +18,6 @@ import { MockDataButton } from './dev/MockDataButton';
 import { DEFAULT_MAP_LAYERS, type MapLayers } from './components/map/mapLayers';
 import { MapLayerControls } from './components/map/MapLayerControls';
 import { ReplayControls, type ReplayState } from './components/replay/ReplayControls';
-import { DemoDataControls } from './components/data/DemoDataControls';
 import { SessionPicker } from './components/data/SessionPicker';
 import { SensorConsensusView } from './components/analysis/SensorConsensusView';
 import { CornerCauseCards } from './components/analysis/CornerCauseCards';
@@ -35,8 +34,9 @@ const LIVE_SECTOR_LAYERS: MapLayers = {
   heatmap: false,
   drivenRoute: false,
   deviation: false,
-  corners: false,
+  corners: true,
   ghost: false,
+  driverState: true,
 };
 
 export function App() {
@@ -100,7 +100,6 @@ export function App() {
 
   const controls = (
     <>
-      <DemoDataControls />
       <SessionPicker />
       <ReplayControls records={records} replay={replay} onChange={setReplay} />
       <MapLayerControls layers={mapLayers} onChange={setMapLayers} />
@@ -205,31 +204,37 @@ export function App() {
 
         {(view === 'live-1' || view === 'live-2' || view === 'live-3') && (
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 h-full min-h-0">
-            <div className="min-h-0">
-              {view === 'live-1' && (
-                <Live1Photoreal records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
-              )}
-              {view === 'live-2' && (
-                <Live2BroadcastSvg records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
-              )}
-              {view === 'live-3' && (
-                <Live3DeckSatellite records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
-              )}
+            <div className={`min-h-0 ${view === 'live-3' ? 'grid grid-rows-[minmax(0,1fr)_180px] gap-3' : ''}`}>
+              <div className="min-h-0">
+                {view === 'live-1' && (
+                  <Live1Photoreal records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
+                )}
+                {view === 'live-2' && (
+                  <Live2BroadcastSvg records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
+                )}
+                {view === 'live-3' && (
+                  <Live3DeckSatellite records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
+                )}
+              </div>
+              {view === 'live-3' && <DriverStateTape />}
             </div>
             <div className="flex flex-col gap-3 min-h-0 overflow-auto">
-              <DemoDataControls />
-              <ReplayControls records={records} replay={replay} onChange={setReplay} />
-              <SectorInsightCard hero />
-              <div className="bg-white/5 rounded-lg px-3 py-2">
+              <div className="text-base">
+                <SectorInsightCard hero />
+              </div>
+              <div className="bg-white/5 rounded-lg px-4 py-3">
                 {speedData.length > 0 ? (
-                  <SpeedChart data={speedData} onBrushChange={() => {}} />
+                  <SpeedChart data={speedData} onBrushChange={() => {}} chartHeight={240} />
                 ) : (
-                  <div className="h-20 flex items-center justify-center text-white/30 text-xs">
+                  <div className="h-40 flex items-center justify-center text-white/30 text-xs">
                     Waiting for telemetry…
                   </div>
                 )}
               </div>
               <AlertsPanel maxRows={3} />
+              <div className="mt-auto">
+                <ReplayControls records={records} replay={replay} onChange={setReplay} />
+              </div>
             </div>
           </div>
         )}
@@ -237,7 +242,6 @@ export function App() {
         {view === 'engineer' && (
           <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-3 h-full min-h-0 overflow-hidden">
             <div className="space-y-3 min-h-0 overflow-hidden">
-              <DemoDataControls />
               <SessionPicker />
               <div className="bg-white/5 rounded-lg p-3">
                 <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
