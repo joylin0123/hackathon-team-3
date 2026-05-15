@@ -13,6 +13,8 @@ import { GhostCarMarker } from './GhostCarMarker';
 import { SectorOverlay } from './SectorOverlay';
 import { CornerLabels } from './CornerLabels';
 import { SectorBoundaryTicks } from './SectorBoundaryTicks';
+import { DEFAULT_MAP_LAYERS, type MapLayers } from './mapLayers';
+import type { TelemetryRecord } from '../../types/telemetry';
 
 // Fix broken default marker icons in Vite
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -23,10 +25,6 @@ L.Icon.Default.mergeOptions({ iconUrl, shadowUrl });
 
 const ZANDVOORT_CENTER: [number, number] = [52.3881, 4.5462];
 
-/**
- * Auto-fits the map to the full Zandvoort racing line on mount and on viewport
- * resize. Saves us from hand-tuning center/zoom for every layout change.
- */
 function FitToTrack() {
   const map = useMap();
   useEffect(() => {
@@ -35,8 +33,6 @@ function FitToTrack() {
       map.invalidateSize();
       map.fitBounds(bounds, { padding: [24, 24] });
     };
-    // First fit after the grid has actually laid out (Leaflet can mount into a
-    // collapsing flex parent with 0 size).
     const id = window.setTimeout(fit, 0);
     const ro = new ResizeObserver(fit);
     ro.observe(map.getContainer());
@@ -48,7 +44,6 @@ function FitToTrack() {
   return null;
 }
 
-// Speed legend entries
 const LEGEND = [
   { label: 'Fast / clean', color: '#35fdad' },
   { label: 'Heavy braking', color: '#38bdf8' },
@@ -57,10 +52,11 @@ const LEGEND = [
 ];
 
 interface RouteMapProps {
-  minimal?: boolean;
+  layers?: MapLayers;
+  replayRecord?: TelemetryRecord;
 }
 
-export function RouteMap({ minimal = false }: RouteMapProps = {}) {
+export function RouteMap({ layers = DEFAULT_MAP_LAYERS, replayRecord }: RouteMapProps) {
   return (
     <div className="relative rounded-lg overflow-hidden border border-white/10 h-full">
       <MapContainer
@@ -75,58 +71,44 @@ export function RouteMap({ minimal = false }: RouteMapProps = {}) {
           maxZoom={19}
         />
         <FitToTrack />
-        {!minimal && <GripHeatmap />}
-        <IdealLinePath />
-        {!minimal && <SpeedTrack />}
-        {!minimal && <DeviationOverlay />}
-        {!minimal && <ZandvoortContextOverlay />}
+        {layers.heatmap && <GripHeatmap />}
+        {layers.idealLine && <IdealLinePath />}
+        {layers.drivenRoute && <SpeedTrack />}
+        {layers.deviation && <DeviationOverlay />}
+        {layers.corners && <ZandvoortContextOverlay />}
         <SectorOverlay />
         <SectorBoundaryTicks />
         <CornerLabels />
-        {!minimal && <GhostCarMarker />}
-        <CarMarker />
+        {layers.ghost && <GhostCarMarker />}
+        <CarMarker record={replayRecord} mode={replayRecord ? 'replay' : 'live'} />
       </MapContainer>
 
       {/* Legend */}
-      {minimal ? (
-        <div className="absolute bottom-4 left-4 z-[1000] bg-black/70 rounded p-2 text-xs text-white space-y-1">
-          <div className="font-semibold mb-1">Zandvoort · 4.259 km</div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-2 rounded" style={{ background: '#35fdad' }} />
-            <span>S green</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-2 rounded" style={{ background: '#facc15' }} />
-            <span>S amber</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-2 rounded" style={{ background: '#ef4444' }} />
-            <span>S red</span>
-          </div>
-        </div>
-      ) : (
       <div className="absolute bottom-4 left-4 z-[1000] bg-black/70 rounded p-2 text-xs text-white space-y-1">
         <div className="font-semibold mb-1">Zandvoort · 4.259 km</div>
-        {LEGEND.map((l) => (
+        {layers.heatmap && LEGEND.map((l) => (
           <div key={l.label} className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ background: l.color }} />
             <span>{l.label}</span>
           </div>
         ))}
-        <div className="flex items-center gap-2 mt-1">
+        {layers.idealLine && <div className="flex items-center gap-2 mt-1">
           <div className="w-3 h-1 rounded" style={{ background: '#35fdad', borderTop: '2px dashed #35fdad' }} />
-          <span>Ideal line</span>
-        </div>
-        <div className="flex items-center gap-2">
+          <span>Reference line</span>
+        </div>}
+        {layers.deviation && <div className="flex items-center gap-2">
           <div className="w-3 h-1 rounded bg-red-500" />
           <span>Off-line (&gt;8m)</span>
-        </div>
-        <div className="flex items-center gap-2">
+        </div>}
+        {layers.ghost && <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-sky-400 border border-white border-dashed" />
           <span>Ghost reference</span>
-        </div>
+        </div>}
+        {replayRecord && <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-yellow-300 border border-white" />
+          <span>Replay car</span>
+        </div>}
       </div>
-      )}
     </div>
   );
 }

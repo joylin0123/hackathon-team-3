@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDevices } from './hooks/useDevices';
 import { usePollingTelemetry } from './hooks/usePollingTelemetry';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
@@ -15,11 +15,21 @@ import { ThresholdSliders } from './components/controls/ThresholdSliders';
 import { AlertsPanel } from './components/alerts/AlertsPanel';
 import { useSectorAlerts } from './hooks/useSectorAlerts';
 import { MockDataButton } from './dev/MockDataButton';
+import { DEFAULT_MAP_LAYERS, type MapLayers } from './components/map/mapLayers';
+import { MapLayerControls } from './components/map/MapLayerControls';
+import { ReplayControls, type ReplayState } from './components/replay/ReplayControls';
 
 type View = 'pitwall' | 'engineer';
 
 export function App() {
   const [view, setView] = useState<View>('pitwall');
+  const [mapLayers, setMapLayers] = useState<MapLayers>(DEFAULT_MAP_LAYERS);
+  const [replay, setReplay] = useState<ReplayState>({
+    enabled: false,
+    playing: false,
+    index: 0,
+    speed: 2,
+  });
 
   useDevices();
   usePollingTelemetry(); // 5 s Athena backfill — laps, history, baselines
@@ -42,6 +52,33 @@ export function App() {
       yawRate: Math.round((r.yaw_rate ?? 0) * 1000) / 1000,
     }));
   }, [records]);
+
+  useEffect(() => {
+    if (!replay.enabled || !replay.playing || records.length < 2) return;
+    const id = window.setInterval(() => {
+      setReplay((current) => {
+        const nextIndex = Math.min(records.length - 1, current.index + current.speed);
+        return {
+          ...current,
+          index: nextIndex,
+          playing: nextIndex < records.length - 1,
+        };
+      });
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [records.length, replay.enabled, replay.playing, replay.speed]);
+
+  useEffect(() => {
+    setReplay((current) => ({
+      ...current,
+      index: Math.min(current.index, Math.max(0, records.length - 1)),
+    }));
+  }, [records.length]);
+
+  const replayRecord = useMemo(() => {
+    if (!replay.enabled || records.length === 0) return undefined;
+    return records[Math.min(replay.index, records.length - 1)];
+  }, [records, replay.enabled, replay.index]);
 
   return (
     <div className="h-screen bg-[#003530] text-white flex flex-col overflow-hidden">
@@ -69,11 +106,13 @@ export function App() {
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 h-full min-h-0">
             <div className="grid grid-rows-[minmax(0,1fr)_180px] gap-3 min-h-0">
               <div className="min-h-0">
-                <RouteMap minimal />
+                <RouteMap layers={mapLayers} replayRecord={replayRecord} />
               </div>
               <DriverStateTape />
             </div>
             <div className="flex flex-col gap-3 min-h-0 overflow-auto">
+              <ReplayControls records={records} replay={replay} onChange={setReplay} />
+              <MapLayerControls layers={mapLayers} onChange={setMapLayers} />
               <SectorInsightCard hero />
               <div className="bg-white/5 rounded-lg px-3 py-2">
                 {speedData.length > 0 ? (
