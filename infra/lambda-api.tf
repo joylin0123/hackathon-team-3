@@ -15,11 +15,7 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      ATHENA_CATALOG                = var.athena_catalog
-      ATHENA_DATABASE               = "telemetry"
-      TABLE_NAME                    = "telemetry"
-      SHARED_ROLE_ARN               = var.shared_role_arn
-      SHARED_ATHENA_OUTPUT_LOCATION = var.shared_athena_output_location
+      DYNAMO_TABLE_NAME = aws_dynamodb_table.telemetry.name
     }
   }
 }
@@ -46,17 +42,17 @@ resource "aws_iam_role_policy_attachment" "api_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_role_policy" "api_assume_shared" {
-  name = "hackathon-api-assume-shared"
+resource "aws_iam_role_policy" "api_dynamo" {
+  name = "hackathon-api-dynamo"
   role = aws_iam_role.api.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = "sts:AssumeRole"
+        Action   = ["dynamodb:Query", "dynamodb:Scan", "dynamodb:GetItem"]
         Effect   = "Allow"
-        Resource = var.shared_role_arn
+        Resource = aws_dynamodb_table.telemetry.arn
       }
     ]
   })
@@ -107,6 +103,12 @@ resource "aws_apigatewayv2_route" "api_telemetry_latest" {
 resource "aws_apigatewayv2_route" "api_telemetry" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET /api/telemetry"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_live" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api/live"
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 

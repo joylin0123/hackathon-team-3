@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { fetchLiveTelemetry } from '../lib/api';
 import { useTelemetryStore } from '../store/telemetryStore';
 
-const POLL_INTERVAL_MS = 1000;
+const POLL_INTERVAL_MS = 3000;
 const FETCH_LIMIT = 10;
 
 /**
