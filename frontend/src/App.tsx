@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDevices } from './hooks/useDevices';
 import { usePollingTelemetry } from './hooks/usePollingTelemetry';
 import { RouteMap } from './components/map/RouteMap';
@@ -10,12 +10,58 @@ import { DashboardTabs, type DashboardTab } from './components/DashboardTabs';
 import { SensorReliabilityPanel } from './components/analysis/SensorReliabilityPanel';
 import { DataConfidenceCard } from './components/stats/DataConfidenceCard';
 import { RaceControlFeed } from './components/analysis/RaceControlFeed';
+import { useTelemetryStore } from './store/telemetryStore';
+import { DEFAULT_MAP_LAYERS, type MapLayers } from './components/map/mapLayers';
+import { MapLayerControls } from './components/map/MapLayerControls';
+import { ReplayControls, type ReplayState } from './components/replay/ReplayControls';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [mapLayers, setMapLayers] = useState<MapLayers>(DEFAULT_MAP_LAYERS);
+  const [replay, setReplay] = useState<ReplayState>({
+    enabled: false,
+    playing: false,
+    index: 0,
+    speed: 2,
+  });
+  const records = useTelemetryStore((s) => s.records);
 
   useDevices();
   usePollingTelemetry();
+
+  useEffect(() => {
+    if (!replay.enabled || !replay.playing || records.length < 2) return;
+    const id = window.setInterval(() => {
+      setReplay((current) => {
+        const nextIndex = Math.min(records.length - 1, current.index + current.speed);
+        return {
+          ...current,
+          index: nextIndex,
+          playing: nextIndex < records.length - 1,
+        };
+      });
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [records.length, replay.enabled, replay.playing, replay.speed]);
+
+  useEffect(() => {
+    setReplay((current) => ({
+      ...current,
+      index: Math.min(current.index, Math.max(0, records.length - 1)),
+    }));
+  }, [records.length]);
+
+  const replayRecord = useMemo(() => {
+    if (!replay.enabled || records.length === 0) return undefined;
+    return records[Math.min(replay.index, records.length - 1)];
+  }, [records, replay.enabled, replay.index]);
+
+  const controls = (
+    <>
+      <ReplayControls records={records} replay={replay} onChange={setReplay} />
+      <MapLayerControls layers={mapLayers} onChange={setMapLayers} />
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-[#003530] text-white flex flex-col">
@@ -36,9 +82,10 @@ export function App() {
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_420px] gap-3 h-full min-h-0">
             <div className="h-[520px] xl:h-auto min-h-0">
-              <RouteMap />
+              <RouteMap layers={mapLayers} replayRecord={replayRecord} />
             </div>
-            <div className="overflow-auto min-h-0">
+            <div className="overflow-auto min-h-0 space-y-3">
+              {controls}
               <StatsPanel />
             </div>
           </div>
@@ -67,10 +114,13 @@ export function App() {
         {activeTab === 'route' && (
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_520px] gap-3 h-full min-h-0">
             <div className="h-[520px] xl:h-auto min-h-0">
-              <RouteMap />
+              <RouteMap layers={mapLayers} replayRecord={replayRecord} />
             </div>
-            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
-              <AnalysisPanel mode="route" />
+            <div className="overflow-auto min-h-0 space-y-3">
+              {controls}
+              <div className="bg-white/5 rounded-lg p-3">
+                <AnalysisPanel mode="route" />
+              </div>
             </div>
           </div>
         )}
