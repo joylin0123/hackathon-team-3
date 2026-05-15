@@ -25,7 +25,16 @@ import { CornerCauseCards } from './components/analysis/CornerCauseCards';
 import { DeviationChart } from './components/analysis/DeviationChart';
 import { InsightsList } from './components/analysis/InsightsList';
 
-type View = 'pitwall' | 'engineer';
+type View = 'pitwall' | 'live' | 'engineer';
+
+const LIVE_SECTOR_LAYERS: MapLayers = {
+  idealLine: true,
+  heatmap: false,
+  drivenRoute: false,
+  deviation: false,
+  corners: false,
+  ghost: false,
+};
 
 export function App() {
   const [view, setView] = useState<View>('pitwall');
@@ -107,12 +116,21 @@ export function App() {
         </div>
         <div className="flex items-center gap-3">
           {import.meta.env.DEV && <MockDataButton />}
-          <button
-            onClick={() => setView(view === 'pitwall' ? 'engineer' : 'pitwall')}
-            className="px-3 py-1.5 text-xs font-mono rounded border border-white/20 text-white/80 hover:bg-white/10 transition"
-          >
-            {view === 'pitwall' ? 'Engineer view →' : '← Pit wall'}
-          </button>
+          <div className="flex gap-1">
+            {(['pitwall', 'live', 'engineer'] as View[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-2.5 py-1 text-xs font-mono rounded border transition ${
+                  view === v
+                    ? 'bg-white/20 border-white/40 text-white'
+                    : 'border-white/20 text-white/60 hover:bg-white/10'
+                }`}
+              >
+                {v === 'pitwall' ? 'Pit Wall' : v === 'live' ? 'Live' : 'Engineer'}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -127,6 +145,33 @@ export function App() {
             </div>
             <div className="flex flex-col gap-3 min-h-0 overflow-auto">
               {controls}
+              <SectorInsightCard hero />
+              <div className="bg-white/5 rounded-lg px-3 py-2">
+                {speedData.length > 0 ? (
+                  <SpeedChart data={speedData} onBrushChange={() => {}} />
+                ) : (
+                  <div className="h-20 flex items-center justify-center text-white/30 text-xs">
+                    Waiting for telemetry…
+                  </div>
+                )}
+              </div>
+              <div className="bg-white/5 rounded-lg p-3">
+                <LapSectorHistoryStrip compact />
+              </div>
+              <AlertsPanel maxRows={3} />
+            </div>
+          </div>
+        )}
+
+        {view === 'live' && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 h-full min-h-0">
+            <div className="grid grid-rows-[minmax(0,1fr)_180px] gap-3 min-h-0">
+              <div className="min-h-0">
+                <RouteMap layers={LIVE_SECTOR_LAYERS} />
+              </div>
+              <DriverStateTape />
+            </div>
+            <div className="flex flex-col gap-3 min-h-0 overflow-auto">
               <SectorInsightCard hero />
               <div className="bg-white/5 rounded-lg px-3 py-2">
                 {speedData.length > 0 ? (
