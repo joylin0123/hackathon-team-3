@@ -36,3 +36,5 @@ infra/.build/
 .idea/
 .claude/
 .context/
+.codex/
+.vscode/

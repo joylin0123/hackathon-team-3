@@ -152,8 +152,10 @@ export function App() {
                   What to read
                 </div>
                 <p className="text-white/60 text-sm">
-                  Use these traces to connect driver inputs and car movement. Speed drops show braking zones,
-                  lateral G marks corner load, longitudinal G shows acceleration or braking, and yaw rate shows rotation.
+                  Use these traces to connect driver inputs and car movement.
+                  Speed drops show braking zones, lateral G marks corner load,
+                  longitudinal G shows acceleration or braking, and yaw rate
+                  shows rotation.
                 </p>
               </div>
             </div>

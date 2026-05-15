@@ -23,7 +23,7 @@ import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl, shadowUrl });
 
-const ZANDVOORT_CENTER: [number, number] = [52.3881, 4.5462];
+const ZANDVOORT_CENTER: [number, number] = [52.38815, 4.54655];
 
 function FitToTrack() {
   const map = useMap();
@@ -54,15 +54,16 @@ const LEGEND = [
 interface RouteMapProps {
   layers?: MapLayers;
   replayRecord?: TelemetryRecord;
+  compact?: boolean;
 }
 
-export function RouteMap({ layers = DEFAULT_MAP_LAYERS, replayRecord }: RouteMapProps) {
+export function RouteMap({ layers = DEFAULT_MAP_LAYERS, replayRecord, compact = false }: RouteMapProps) {
   return (
     <div className="relative rounded-lg overflow-hidden border border-white/10 h-full">
       <MapContainer
         center={ZANDVOORT_CENTER}
         zoom={15}
-        style={{ height: '100%', width: '100%', background: '#0a0a0a' }}
+        style={{ height: '100%', width: '100%', background: '#003530' }}
         zoomControl={true}
       >
         <TileLayer
@@ -84,9 +85,9 @@ export function RouteMap({ layers = DEFAULT_MAP_LAYERS, replayRecord }: RouteMap
       </MapContainer>
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 z-[1000] bg-black/70 rounded p-2 text-xs text-white space-y-1">
+      <div className={`absolute bottom-3 left-3 z-[1000] bg-black/70 rounded p-2 text-xs text-white space-y-1 ${compact ? 'max-w-[210px]' : ''}`}>
         <div className="font-semibold mb-1">Zandvoort · 4.259 km</div>
-        {layers.heatmap && LEGEND.map((l) => (
+        {!compact && layers.heatmap && LEGEND.map((l) => (
           <div key={l.label} className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ background: l.color }} />
             <span>{l.label}</span>
