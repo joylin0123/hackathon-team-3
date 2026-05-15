@@ -18,6 +18,9 @@ import { MockDataButton } from './dev/MockDataButton';
 import { DEFAULT_MAP_LAYERS, type MapLayers } from './components/map/mapLayers';
 import { MapLayerControls } from './components/map/MapLayerControls';
 import { ReplayControls, type ReplayState } from './components/replay/ReplayControls';
+import { DemoDataControls } from './components/data/DemoDataControls';
+import { SessionPicker } from './components/data/SessionPicker';
+import { SensorConsensusView } from './components/analysis/SensorConsensusView';
 
 type View = 'pitwall' | 'engineer';
 
@@ -80,6 +83,15 @@ export function App() {
     return records[Math.min(replay.index, records.length - 1)];
   }, [records, replay.enabled, replay.index]);
 
+  const controls = (
+    <>
+      <DemoDataControls />
+      <SessionPicker />
+      <ReplayControls records={records} replay={replay} onChange={setReplay} />
+      <MapLayerControls layers={mapLayers} onChange={setMapLayers} />
+    </>
+  );
+
   return (
     <div className="h-screen bg-[#003530] text-white flex flex-col overflow-hidden">
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
@@ -111,8 +123,7 @@ export function App() {
               <DriverStateTape />
             </div>
             <div className="flex flex-col gap-3 min-h-0 overflow-auto">
-              <ReplayControls records={records} replay={replay} onChange={setReplay} />
-              <MapLayerControls layers={mapLayers} onChange={setMapLayers} />
+              {controls}
               <SectorInsightCard hero />
               <div className="bg-white/5 rounded-lg px-3 py-2">
                 {speedData.length > 0 ? (
@@ -132,7 +143,20 @@ export function App() {
         )}
 
         {view === 'engineer' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-3 h-full min-h-0">
+          <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)_320px] gap-3 h-full min-h-0">
+            <div className="space-y-3">
+              <DemoDataControls />
+              <SessionPicker />
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-[#35fdad] text-xs font-mono uppercase tracking-widest mb-2">
+                  What to read
+                </div>
+                <p className="text-white/60 text-sm">
+                  Use these traces to connect driver inputs and car movement. Speed drops show braking zones,
+                  lateral G marks corner load, longitudinal G shows acceleration or braking, and yaw rate shows rotation.
+                </p>
+              </div>
+            </div>
             <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
               <TelemetryGraphs />
             </div>
@@ -141,6 +165,7 @@ export function App() {
               <div className="bg-white/5 rounded-lg p-3">
                 <ThresholdSliders />
               </div>
+              <SensorConsensusView />
               <div className="bg-white/5 rounded-lg p-3">
                 <LapSectorHistoryStrip />
               </div>
