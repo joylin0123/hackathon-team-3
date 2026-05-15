@@ -167,7 +167,7 @@ export function App() {
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 h-full min-h-0">
             <div className="grid grid-rows-[minmax(0,1fr)_180px] gap-3 min-h-0">
               <div className="min-h-0">
-                <RouteMap layers={LIVE_SECTOR_LAYERS} />
+                <RouteMap layers={LIVE_SECTOR_LAYERS} replayRecord={replayRecord} />
               </div>
               <DriverStateTape />
             </div>
