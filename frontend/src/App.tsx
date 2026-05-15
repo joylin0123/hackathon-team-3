@@ -24,8 +24,11 @@ import { SensorConsensusView } from './components/analysis/SensorConsensusView';
 import { CornerCauseCards } from './components/analysis/CornerCauseCards';
 import { DeviationChart } from './components/analysis/DeviationChart';
 import { InsightsList } from './components/analysis/InsightsList';
+import { Live1Photoreal } from './components/map-pocs/Live1Photoreal';
+import { Live2BroadcastSvg } from './components/map-pocs/Live2BroadcastSvg';
+import { Live3DeckSatellite } from './components/map-pocs/Live3DeckSatellite';
 
-type View = 'pitwall' | 'live' | 'engineer';
+type View = 'pitwall' | 'live' | 'engineer' | 'live-1' | 'live-2' | 'live-3';
 
 const LIVE_SECTOR_LAYERS: MapLayers = {
   idealLine: true,
@@ -117,7 +120,7 @@ export function App() {
         <div className="flex items-center gap-3">
           {import.meta.env.DEV && <MockDataButton />}
           <div className="flex gap-1">
-            {(['pitwall', 'live', 'engineer'] as View[]).map((v) => (
+            {(['pitwall', 'live', 'engineer', 'live-1', 'live-2', 'live-3'] as View[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -127,7 +130,17 @@ export function App() {
                     : 'border-white/20 text-white/60 hover:bg-white/10'
                 }`}
               >
-                {v === 'pitwall' ? 'Pit Wall' : v === 'live' ? 'Live' : 'Engineer'}
+                {v === 'pitwall'
+                  ? 'Pit Wall'
+                  : v === 'live'
+                    ? 'Live'
+                    : v === 'engineer'
+                      ? 'Engineer'
+                      : v === 'live-1'
+                        ? 'Live-1'
+                        : v === 'live-2'
+                          ? 'Live-2'
+                          : 'Live-3'}
               </button>
             ))}
           </div>
@@ -184,6 +197,37 @@ export function App() {
               </div>
               <div className="bg-white/5 rounded-lg p-3">
                 <LapSectorHistoryStrip compact />
+              </div>
+              <AlertsPanel maxRows={3} />
+            </div>
+          </div>
+        )}
+
+        {(view === 'live-1' || view === 'live-2' || view === 'live-3') && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3 h-full min-h-0">
+            <div className="min-h-0">
+              {view === 'live-1' && (
+                <Live1Photoreal records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
+              )}
+              {view === 'live-2' && (
+                <Live2BroadcastSvg records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
+              )}
+              {view === 'live-3' && (
+                <Live3DeckSatellite records={records} latest={records[records.length - 1]} replayRecord={replayRecord} />
+              )}
+            </div>
+            <div className="flex flex-col gap-3 min-h-0 overflow-auto">
+              <DemoDataControls />
+              <ReplayControls records={records} replay={replay} onChange={setReplay} />
+              <SectorInsightCard hero />
+              <div className="bg-white/5 rounded-lg px-3 py-2">
+                {speedData.length > 0 ? (
+                  <SpeedChart data={speedData} onBrushChange={() => {}} />
+                ) : (
+                  <div className="h-20 flex items-center justify-center text-white/30 text-xs">
+                    Waiting for telemetry…
+                  </div>
+                )}
               </div>
               <AlertsPanel maxRows={3} />
             </div>
