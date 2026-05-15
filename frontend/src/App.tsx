@@ -84,9 +84,9 @@ export function App() {
       <DashboardTabs activeTab={activeTab} onChange={setActiveTab} />
 
       <main className="flex-1 p-3 min-h-0">
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_420px] gap-3 h-full min-h-0">
-            <div className="h-[520px] xl:h-auto min-h-0">
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(420px,0.9fr)_minmax(420px,1.1fr)] gap-3 h-full min-h-0">
+            <div className="h-96 xl:h-115 min-h-0">
               <RouteMap layers={mapLayers} replayRecord={replayRecord} />
             </div>
             <div className="overflow-auto min-h-0 space-y-3">
@@ -96,7 +96,7 @@ export function App() {
           </div>
         )}
 
-        {activeTab === 'telemetry' && (
+        {activeTab === "telemetry" && (
           <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-3 h-full min-h-0">
             <div className="space-y-3">
               <DemoDataControls />
@@ -106,8 +106,10 @@ export function App() {
                   What to read
                 </div>
                 <p className="text-white/60 text-sm">
-                  Use these traces to connect driver inputs and car movement. Speed drops show braking zones,
-                  lateral G marks corner load, longitudinal G shows acceleration or braking, and yaw rate shows rotation.
+                  Use these traces to connect driver inputs and car movement.
+                  Speed drops show braking zones, lateral G marks corner load,
+                  longitudinal G shows acceleration or braking, and yaw rate
+                  shows rotation.
                 </p>
               </div>
               <DataConfidenceCard />
@@ -118,21 +120,25 @@ export function App() {
           </div>
         )}
 
-        {activeTab === 'route' && (
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_520px] gap-3 h-full min-h-0">
-            <div className="h-[520px] xl:h-auto min-h-0">
-              <RouteMap layers={mapLayers} replayRecord={replayRecord} />
-            </div>
+        {activeTab === "route" && (
+          <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-3 h-full min-h-0">
             <div className="overflow-auto min-h-0 space-y-3">
-              {controls}
-              <div className="bg-white/5 rounded-lg p-3">
-                <AnalysisPanel mode="route" />
+              <div className="h-[300px] min-h-0">
+                <RouteMap
+                  layers={mapLayers}
+                  replayRecord={replayRecord}
+                  compact
+                />
               </div>
+              {controls}
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 overflow-auto min-h-0">
+              <AnalysisPanel mode="route" />
             </div>
           </div>
         )}
 
-        {activeTab === 'sensors' && (
+        {activeTab === "sensors" && (
           <div className="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-3 h-full min-h-0">
             <div className="space-y-3">
               <DemoDataControls />
